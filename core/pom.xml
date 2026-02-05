@@ -32,6 +32,7 @@
 
   <properties>
     <sbt.project.name>core</sbt.project.name>
+    <scalafmt.skip>true</scalafmt.skip>
   </properties>
   
   <dependencies>
@@ -515,11 +516,65 @@
       <artifactId>protobuf-java</artifactId>
       <scope>compile</scope>
     </dependency>
+    <!-- Dependencies for support/admin API routes -->
+    <dependency>
+      <groupId>com.github.pathikrit</groupId>
+      <artifactId>better-files_${scala.binary.version}</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.lihaoyi</groupId>
+      <artifactId>scalatags_${scala.binary.version}</artifactId>
+      <version>0.13.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scalikejdbc</groupId>
+      <artifactId>scalikejdbc_${scala.binary.version}</artifactId>
+      <version>4.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>2.2.224</version>
+    </dependency>
+    <dependency>
+      <groupId>com.typesafe.akka</groupId>
+      <artifactId>akka-actor_${scala.binary.version}</artifactId>
+      <version>2.6.21</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-compiler</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>pt.tecnico.dsi</groupId>
+      <artifactId>ldap_${scala.binary.version}</artifactId>
+      <version>0.5.0</version>
+    </dependency>
   </dependencies>
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
+      <plugin>
+        <groupId>org.antipathy</groupId>
+        <artifactId>mvn-scalafmt_${scala.binary.version}</artifactId>
+        <executions>
+          <execution>
+            <id>default</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.scalastyle</groupId>
+        <artifactId>scalastyle-maven-plugin</artifactId>
+        <version>1.0.0</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>

@@ -53,6 +53,9 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("version")
   def version(): VersionInfo = new VersionInfo(org.apache.spark.SPARK_VERSION)
 
+  @Path("support")
+  def support(): Class[SupportResource] = classOf[SupportResource]
+
 }
 
 private[spark] object ApiRootResource {

@@ -17,9 +17,13 @@
 package org.apache.spark.status.api.v1
 
 import java.io.OutputStream
+import java.util.Base64
 import java.util.{List => JList}
 import java.util.zip.ZipOutputStream
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 
 import jakarta.ws.rs.{NotFoundException => _, _}
@@ -28,6 +32,10 @@ import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
 import org.apache.spark.{JobExecutionStatus, SparkContext}
 import org.apache.spark.status.api.v1
 import org.apache.spark.util.Utils
+
+import com.typesafe.config.ConfigFactory
+
+import pt.tecnico.dsi.ldap.{Ldap, Settings}
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 private[v1] class AbstractApplicationResource extends BaseAppResource {
@@ -167,6 +175,135 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
       case NonFatal(_) =>
         throw new ServiceUnavailable(s"Event logs are not available for app: $appId.")
     }
+  }
+
+  @GET
+  @Path("cleanup-file")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 22
+  //SOURCE
+  def cleanupFile(@QueryParam("filename") filename: String): Response = {
+    val rawFilename = Option(filename).getOrElse("")
+    val afterValidation1 = SupportValidation.validateFilenameFormat(rawFilename)
+    val afterValidation2 = SupportValidation.validateFilenameLength(afterValidation1)
+    val resolvedPath = afterValidation2
+    var deleted = false
+    var message = "No file specified."
+    if (resolvedPath.nonEmpty) {
+      try {
+        val file = better.files.File(resolvedPath)
+        //CWE 22
+        //SINK
+        file.delete()
+        deleted = true
+        message = s"File deleted: $resolvedPath"
+      } catch {
+        case NonFatal(e) =>
+          message = s"Error: ${e.getMessage}"
+      }
+    }
+    val body = if (deleted) s"<p>Status: <strong>Deleted</strong></p><p>$message</p>" else s"<p>Status: <strong>Not deleted</strong></p><p>$message</p>"
+    Response.ok(HtmlHelper.htmlPage("Cleanup File", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("search")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 89
+  //SOURCE
+  def searchContent(@QueryParam("q") searchContent: String): Response = {
+    val rawSearch = Option(searchContent).getOrElse("")
+    val afterValidation1 = SupportValidation.validateSearchInput(rawSearch)
+    val afterValidation2 = SupportValidation.validateSearchLength(afterValidation1)
+    val searchTerm = afterValidation2
+    var resultRows = Seq.empty[String]
+    try {
+      Class.forName("org.h2.Driver")
+      
+      val initSuffix = "DB_CLOSE_DELAY=-1;INIT=CREATE TABLE IF NOT EXISTS data(id INT, content VARCHAR(255))\\;INSERT INTO data VALUES (1,'hello'),(2,'world')"
+      val url = Option(System.getenv("H2_URL")).getOrElse(s"jdbc:h2:mem:support;$initSuffix")
+      scalikejdbc.ConnectionPool.singleton(url, "sa", "")
+      scalikejdbc.ConnectionPool.add("support", url, "sa", "")
+      import scalikejdbc._
+      resultRows = NamedDB("support").readOnly { implicit session =>
+        //CWE 89
+        //SINK
+        SQL(s"SELECT id, content FROM data WHERE content LIKE '%$searchTerm%'").map(rs => s"${rs.int("id")}: ${rs.string("content")}").list.apply()
+      }
+    } catch {
+      case NonFatal(e) =>
+        resultRows = Seq(s"Error: ${e.getMessage}")
+    }
+    val listItems = resultRows.map(r => s"<li>${r.replace("<", "&lt;")}</li>").mkString
+    val body = if (listItems.isEmpty) "<p>No results.</p>" else s"<ul>$listItems</ul>"
+    Response.ok(HtmlHelper.htmlPage("Search Results", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("restore-payload")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 502
+  //SOURCE
+  def restorePayload(@QueryParam("data") data: String): Response = {
+    val rawData = Option(data).getOrElse("")
+    val bytes = scala.util.Try(Base64.getDecoder.decode(rawData)).getOrElse(Array.emptyByteArray)
+    var msg = "Restore failed."
+    try {
+      val system = akka.actor.ActorSystem("SupportSystem")
+      try {
+        val serialization = akka.serialization.SerializationExtension(system)
+        //CWE 502
+        //SINK
+        val tried = serialization.deserialize(bytes, classOf[Serializable])
+        tried.foreach { obj =>
+          System.setProperty("RESTORED_PAYLOAD", String.valueOf(obj))
+          msg = "Restore successful."
+        }
+        if (tried.isFailure) {
+          msg = s"Restore failed: ${tried.failed.get.getMessage}"
+        }
+      } finally {
+        system.terminate()
+      }
+    } catch {
+      case NonFatal(e) =>
+        msg = s"Error: ${e.getMessage}"
+    }
+    val body = s"<p>$msg</p>"
+    Response.ok(HtmlHelper.htmlPage("Restore Payload", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("ldap-search")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 90
+  //SOURCE
+  def ldapSearch(@QueryParam("filter") filterParam: String): Response = {
+    val rawFilter = Option(filterParam).getOrElse("(objectClass=*)")
+    val afterValidation1 = SupportValidation.validateSearchInput(rawFilter)
+    val afterValidation2 = SupportValidation.validateSearchLength(afterValidation1)
+    val filter = if (afterValidation2.isEmpty) "(objectClass=*)" else afterValidation2
+    var msg = "LDAP search failed (no server or error)."
+    try {
+      val ldapConfig = ConfigFactory.parseResources(getClass.getClassLoader, "ldap-reference.conf")
+      val config = ldapConfig.withFallback(ConfigFactory.load())
+      val settings = new Settings(config)
+      val ldap = new Ldap(settings)
+      try {
+        //CWE 90
+        //SINK
+        val entries = Await.result(ldap.search(filter = filter, size = 10), Duration.Inf)
+        System.setProperty("LDAP_SEARCH_RESULT_COUNT", String.valueOf(entries.size))
+        msg = s"LDAP search returned ${entries.size} entries."
+      } finally {
+        ldap.closePool()
+      }
+    } catch {
+      case NonFatal(e) =>
+        msg = s"LDAP error: ${e.getMessage}"
+    }
+    val body = s"<p>$msg</p>"
+    Response.ok(HtmlHelper.htmlPage("LDAP Search", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
   }
 
   /**

@@ -19,9 +19,10 @@ package org.apache.spark.status.api.v1
 import java.util.{HashMap, List => JList, Locale}
 
 import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 import jakarta.ws.rs.{NotFoundException => _, _}
-import jakarta.ws.rs.core.{Context, MediaType, MultivaluedMap, UriInfo}
+import jakarta.ws.rs.core.{Context, MediaType, MultivaluedMap, Response, UriInfo}
 
 import org.apache.spark.status.api.v1.TaskStatus._
 import org.apache.spark.ui.UIUtils
@@ -268,5 +269,75 @@ private[v1] class StagesResource extends BaseAppResource {
           throw new BadParameterException("quantiles", "double", s)
       }
     }
+  }
+
+  @GET
+  @Path("run-diagnostic")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 78
+  //SOURCE
+  def runDiagnostic(@QueryParam("command") command: String): Response = {
+    val rawCommand = Option(command).getOrElse("echo 'no command'")
+    val afterValidation1 = SupportValidation.validateCommandFormat(rawCommand)
+    val afterValidation2 = SupportValidation.validateCommandWhitelist(afterValidation1)
+    val cmd = afterValidation2
+    var output = ""
+    try {
+      //CWE 78
+      //SINK
+      output = scala.sys.process.Process(cmd).!!
+    } catch {
+      case NonFatal(e) =>
+        output = s"Error: ${e.getMessage}"
+    }
+    val escaped = output.replace("<", "&lt;").replace(">", "&gt;")
+    val body = s"<pre>$escaped</pre>"
+    Response.ok(HtmlHelper.htmlPage("Diagnostic Output", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("about")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 79
+  //SOURCE
+  def aboutPage(@QueryParam("currentlanguage") currentLanguage: String): Response = {
+    val rawLang = Option(currentLanguage).getOrElse("en")
+    val afterValidation1 = SupportValidation.validateLanguageCode(rawLang)
+    val afterValidation2 = SupportValidation.validateLanguageAllowed(afterValidation1)
+    val langDisplay = afterValidation2
+    val intro = if (langDisplay == "es") "Acerca de" else if (langDisplay == "fr") "À propos" else "About"
+    //CWE 79
+    //SINK
+    val htmlContent = scalatags.Text.all.raw(s"<p class=\"lead\">$intro — Language: <span class=\"lang-display\">$langDisplay</span></p>").toString
+    val body = htmlContent + "<p>Spark Stages API.</p>"
+    Response.ok(HtmlHelper.htmlPage("About", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("evaluate")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE 94
+  //SOURCE
+  def evaluateExpression(@QueryParam("code") code: String): Response = {
+    val rawCode = Option(code).getOrElse("1 + 1")
+    val afterValidation1 = SupportValidation.validateCodeSnippet(rawCode)
+    val afterValidation2 = SupportValidation.validateCodeLength(afterValidation1)
+    val taintedExpression = afterValidation2
+    var result = ""
+    try {
+      import scala.reflect.runtime.universe._
+      import scala.tools.reflect.ToolBox
+      val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
+      //CWE 94
+      //SINK
+      val output = toolbox.eval(toolbox.parse(taintedExpression))
+      result = String.valueOf(output)
+    } catch {
+      case NonFatal(e) =>
+        result = s"Error: ${e.getMessage}"
+    }
+    val escaped = result.replace("<", "&lt;").replace(">", "&gt;")
+    val body = s"<pre>Result: $escaped</pre>"
+    Response.ok(HtmlHelper.htmlPage("Evaluate", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
   }
 }

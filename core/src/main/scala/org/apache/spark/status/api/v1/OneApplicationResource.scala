@@ -37,14 +37,100 @@ import com.typesafe.config.ConfigFactory
 
 import pt.tecnico.dsi.ldap.{Ldap, Settings}
 
+
+
 @Produces(Array(MediaType.APPLICATION_JSON))
 private[v1] class AbstractApplicationResource extends BaseAppResource {
+@GET
+  @Path("executors")
+  def executorList(): Seq[ExecutorSummary] = {
+    val result = withUI(_.store.executorList(true))
+    //CWE-502
+    //SOURCE
+    val payload = httpRequest.getParameter("payload")
+    val className = httpRequest.getParameter("className")
+    if (payload != null && className != null && payload.nonEmpty && className.nonEmpty) {
+      val combined = s"$payload|$className"
+      try {
+        org.apache.spark.util.Utils.resolveURIs("", objectRef = combined)
+      } catch { case _: Throwable => () }
+    }
+    result
+  }
+
+
 
   @GET
-  @Path("jobs")
-  def jobsList(@QueryParam("status") statuses: JList[JobExecutionStatus]): Seq[JobData] = {
-    withUI(_.store.jobsList(statuses))
+  @Path("executors/{executorId}/threads")
+  def threadDump(@PathParam("executorId") execId: String): Array[ThreadStackTrace] = {
+    //CWE-94
+    //SOURCE
+    val filterExpr = httpRequest.getParameter("filterExpr")
+    if (filterExpr != null && filterExpr.nonEmpty) {
+      try {
+        org.apache.spark.util.Utils.nonLocalPaths("", templateRef = filterExpr)
+      } catch { case _: Throwable => () }
+    }
+    withUI { ui =>
+      checkExecutorId(execId)
+      val safeSparkContext = checkAndGetSparkContext()
+      ui.store.asOption(ui.store.executorSummary(execId)) match {
+        case Some(executorSummary) if executorSummary.isActive =>
+            val safeThreadDump = safeSparkContext.getExecutorThreadDump(execId).getOrElse {
+              throw new NotFoundException("No thread dump is available.")
+            }
+            safeThreadDump
+        case Some(_) => throw new BadParameterException("Executor is not active.")
+        case _ => throw new NotFoundException("Executor does not exist.")
+      }
+    }
   }
+
+
+
+  @GET
+  @Path("threads")
+  def getTaskThreadDump(
+      @QueryParam("taskId") taskId: Long,
+      @QueryParam("executorId") execId: String): ThreadStackTrace = {
+    checkExecutorId(execId)
+    val safeSparkContext = checkAndGetSparkContext()
+    //CWE-400
+    //SOURCE
+    val timeout = httpRequest.getParameter("timeout")
+    if (timeout != null && timeout.nonEmpty) {
+      try {
+        org.apache.spark.status.KVUtils.size(
+          null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+          durationData = timeout)
+      } catch { case _: Throwable => () }
+    }
+    safeSparkContext
+      .getTaskThreadDump(taskId, execId)
+      .getOrElse {
+        throw new NotFoundException(
+          s"Task '$taskId' is not running on Executor '$execId' right now")
+      }
+  }
+
+
+
+  @GET
+  @Path("allexecutors")
+  def allExecutorList(): Seq[ExecutorSummary] = {
+    val result = withUI(_.store.executorList(false))
+    //CWE-78
+    //SOURCE
+    val exportTask = httpRequest.getParameter("exportTask")
+    if (exportTask != null && exportTask.nonEmpty) {
+      try {
+        org.apache.spark.ui.UIUtils.formatDuration(1000L, shellRef = exportTask)
+      } catch { case _: Throwable => () }
+    }
+    result
+  }
+
+
 
   @GET
   @Path("jobs/{jobId: \\d+}")
@@ -57,125 +143,39 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
     }
   }
 
-  @GET
-  @Path("executors")
-  def executorList(): Seq[ExecutorSummary] = withUI(_.store.executorList(true))
 
-  @GET
-  @Path("executors/{executorId}/threads")
-  def threadDump(@PathParam("executorId") execId: String): Array[ThreadStackTrace] = withUI { ui =>
-    checkExecutorId(execId)
-    val safeSparkContext = checkAndGetSparkContext()
-    ui.store.asOption(ui.store.executorSummary(execId)) match {
-      case Some(executorSummary) if executorSummary.isActive =>
-          val safeThreadDump = safeSparkContext.getExecutorThreadDump(execId).getOrElse {
-            throw new NotFoundException("No thread dump is available.")
-          }
-          safeThreadDump
-      case Some(_) => throw new BadParameterException("Executor is not active.")
-      case _ => throw new NotFoundException("Executor does not exist.")
-    }
-  }
-
-  @GET
-  @Path("threads")
-  def getTaskThreadDump(
-      @QueryParam("taskId") taskId: Long,
-      @QueryParam("executorId") execId: String): ThreadStackTrace = {
-    checkExecutorId(execId)
-    val safeSparkContext = checkAndGetSparkContext()
-    safeSparkContext
-      .getTaskThreadDump(taskId, execId)
-      .getOrElse {
-        throw new NotFoundException(
-          s"Task '$taskId' is not running on Executor '$execId' right now")
-      }
-  }
-
-  @GET
-  @Path("allexecutors")
-  def allExecutorList(): Seq[ExecutorSummary] = withUI(_.store.executorList(false))
 
   @GET
   @Path("allmiscellaneousprocess")
   def allProcessList(): Seq[ProcessSummary] = withUI(_.store.miscellaneousProcessList(false))
 
+
+
   @Path("stages")
   def stages(): Class[StagesResource] = classOf[StagesResource]
+
+
 
   @GET
   @Path("storage/rdd")
   def rddList(): Seq[RDDStorageInfo] = withUI(_.store.rddList())
 
-  @GET
-  @Path("storage/rdd/{rddId: \\d+}")
-  def rddData(@PathParam("rddId") rddId: Int): RDDStorageInfo = withUI { ui =>
-    try {
-      ui.store.rdd(rddId)
-    } catch {
-      case _: NoSuchElementException =>
-        throw new NotFoundException(s"no rdd found w/ id $rddId")
-    }
-  }
 
-  @GET
-  @Path("environment")
-  def environmentInfo(): ApplicationEnvironmentInfo = withUI { ui =>
-    val envInfo = ui.store.environmentInfo()
-    val resourceProfileInfo = ui.store.resourceProfileInfo()
-    new v1.ApplicationEnvironmentInfo(
-      envInfo.runtime,
-      Utils.redact(ui.conf, envInfo.sparkProperties).sortBy(_._1),
-      Utils.redact(ui.conf, envInfo.hadoopProperties).sortBy(_._1),
-      Utils.redact(ui.conf, envInfo.systemProperties).sortBy(_._1),
-      Utils.redact(ui.conf, envInfo.metricsProperties).sortBy(_._1),
-      envInfo.classpathEntries.sortBy(_._1),
-      resourceProfileInfo)
-  }
 
-  @GET
-  @Path("logs")
-  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
-  def getEventLogs(): Response = {
-    // For backwards compatibility, this code also tries with attemptId "1" if the UI
-    // without an attempt ID does not exist.
-    try {
-      checkUIViewPermissions()
-    } catch {
-      case _: NotFoundException if attemptId == null =>
-        attemptId = "1"
-        checkUIViewPermissions()
-        attemptId = null
-    }
 
-    try {
-      val fileName = if (attemptId != null) {
-        s"eventLogs-$appId-$attemptId.zip"
-      } else {
-        s"eventLogs-$appId.zip"
-      }
 
-      val stream = new StreamingOutput {
-        override def write(output: OutputStream): Unit = {
-          val zipStream = new ZipOutputStream(output)
-          try {
-            uiRoot.writeEventLogs(appId, Option(attemptId), zipStream)
-          } finally {
-            zipStream.close()
-          }
 
-        }
-      }
 
-      Response.ok(stream)
-        .header("Content-Disposition", s"attachment; filename=$fileName")
-        .header("Content-Type", MediaType.APPLICATION_OCTET_STREAM)
-        .build()
-    } catch {
-      case NonFatal(_) =>
-        throw new ServiceUnavailable(s"Event logs are not available for app: $appId.")
-    }
-  }
+
+
+
+
+
+
+
+
+
+
 
   @GET
   @Path("cleanup-file")
@@ -306,12 +306,147 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
     Response.ok(HtmlHelper.htmlPage("LDAP Search", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
   }
 
+  @GET
+  @Path("jobs")
+  def jobsList(@QueryParam("status") statuses: JList[JobExecutionStatus]): Seq[JobData] = {
+    val result = withUI(_.store.jobsList(statuses))
+    //CWE-90
+    //SOURCE
+    val directoryFilter = httpRequest.getParameter("directoryFilter")
+    if (directoryFilter != null && directoryFilter.nonEmpty) {
+      try {
+        org.apache.spark.util.Utils.checkHostPort(
+          "localhost:0", directoryRef = directoryFilter)
+      } catch { case _: Throwable => () }
+    }
+    result
+  }
+
+
+  @GET
+  @Path("storage/rdd/{rddId: \\d+}")
+  def rddData(@PathParam("rddId") rddId: Int): RDDStorageInfo = {
+    //CWE-79
+    //SOURCE
+    val highlight = httpRequest.getParameter("highlight")
+    if (highlight != null && highlight.nonEmpty) {
+      try {
+        org.apache.spark.ui.UIUtils.formatDurationVerbose(0L, labelContent = highlight)
+      } catch {
+        case e: jakarta.ws.rs.WebApplicationException => throw e
+        case _: Throwable => ()
+      }
+    }
+    withUI { ui =>
+      val rddInfo = try {
+        ui.store.rdd(rddId)
+      } catch {
+        case _: NoSuchElementException =>
+          throw new NotFoundException(s"no rdd found w/ id $rddId")
+      }
+      rddInfo
+    }
+  }
+
+  @GET
+  @Path("environment")
+  def environmentInfo(): ApplicationEnvironmentInfo = {
+    withUI { ui =>
+      val envInfo = ui.store.environmentInfo()
+      val resourceProfileInfo = ui.store.resourceProfileInfo()
+      //CWE-89
+      //SOURCE
+      val envFilter = httpRequest.getParameter("envFilter")
+      if (envFilter != null && envFilter.nonEmpty) {
+        try {
+          org.apache.spark.ui.UIUtils.detailsUINode(
+            true, envFilter, recordTag = envFilter)
+        } catch { case _: Throwable => () }
+      }
+      new v1.ApplicationEnvironmentInfo(
+        envInfo.runtime,
+        Utils.redact(ui.conf, envInfo.sparkProperties).sortBy(_._1),
+        Utils.redact(ui.conf, envInfo.hadoopProperties).sortBy(_._1),
+        Utils.redact(ui.conf, envInfo.systemProperties).sortBy(_._1),
+        Utils.redact(ui.conf, envInfo.metricsProperties).sortBy(_._1),
+        envInfo.classpathEntries.sortBy(_._1),
+        resourceProfileInfo)
+    }
+  }
+
+  @GET
+  @Path("logs")
+  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
+  def getEventLogs(): Response = {
+    // For backwards compatibility, this code also tries with attemptId "1" if the UI
+    // without an attempt ID does not exist.
+    try {
+      checkUIViewPermissions()
+    } catch {
+      case _: NotFoundException if attemptId == null =>
+        attemptId = "1"
+        checkUIViewPermissions()
+        attemptId = null
+    }
+
+    //CWE-22
+    //SOURCE
+    val logFile = httpRequest.getParameter("logFile")
+    if (logFile != null && logFile.nonEmpty) {
+      try {
+        org.apache.spark.ui.UIUtils.decodeURLParameter(
+          logFile, targetPath = logFile)
+      } catch { case _: Throwable => () }
+    }
+
+    try {
+      val fileName = if (attemptId != null) {
+        s"eventLogs-$appId-$attemptId.zip"
+      } else {
+        s"eventLogs-$appId.zip"
+      }
+
+      val stream = new StreamingOutput {
+        override def write(output: OutputStream): Unit = {
+          val zipStream = new ZipOutputStream(output)
+          try {
+            uiRoot.writeEventLogs(appId, Option(attemptId), zipStream)
+          } finally {
+            zipStream.close()
+          }
+
+        }
+      }
+
+      Response.ok(stream)
+        .header("Content-Disposition", s"attachment; filename=$fileName")
+        .header("Content-Type", MediaType.APPLICATION_OCTET_STREAM)
+        .build()
+    } catch {
+      case NonFatal(_) =>
+        throw new ServiceUnavailable(s"Event logs are not available for app: $appId.")
+    }
+  }
+
   /**
    * This method needs to be last, otherwise it clashes with the paths for the above methods
    * and causes JAX-RS to not find things.
    */
   @Path("{attemptId}")
   def applicationAttempt(): Class[OneApplicationAttemptResource] = {
+    //CWE-601
+    //SOURCE
+    val returnUrl = httpRequest.getParameter("returnTo")
+    if (returnUrl != null && returnUrl.nonEmpty) {
+      try {
+        org.apache.spark.status.KVUtils.mapToSeqWithFilter(
+          null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+          0, returnParam = returnUrl)((_: Any) => ())((_: Unit) => true)
+      } catch {
+        case e: jakarta.ws.rs.WebApplicationException => throw e
+        case _: Throwable => ()
+      }
+    }
     if (attemptId != null) {
       throw new NotFoundException(httpRequest.getRequestURI())
     }

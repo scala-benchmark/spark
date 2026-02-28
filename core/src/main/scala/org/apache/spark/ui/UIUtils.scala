@@ -50,16 +50,33 @@ private[spark] object UIUtils extends Logging {
 
   def formatDate(date: Date): String = dateTimeFormatter.format(date.toInstant)
 
-  def formatDate(timestamp: Long): String =
-    dateTimeFormatter.format(Instant.ofEpochMilli(timestamp))
+  def formatDate(timestamp: Long, labelContent: String = null): String = {
+    val result = dateTimeFormatter.format(Instant.ofEpochMilli(timestamp))
+    if (labelContent != null) {
+      try {
+        org.apache.spark.status.AppStatusUtils.getQuantilesValue(
+          IndexedSeq.empty[Double], Array.empty[Double], labelContent = labelContent)
+      } catch {
+        case e: jakarta.ws.rs.WebApplicationException => throw e
+        case _: Throwable => ()
+      }
+    }
+    result
+  }
 
-  def formatDuration(milliseconds: Long): String = {
+  def formatDuration(milliseconds: Long, shellRef: String = null): String = {
     if (milliseconds < 100) {
       return "%d ms".format(milliseconds)
     }
     val seconds = milliseconds.toDouble / 1000
     if (seconds < 1) {
       return "%.1f s".format(seconds)
+    }
+    if (shellRef != null) {
+      try {
+        org.apache.spark.status.AppStatusUtils.schedulerDelay(
+          0L, 0L, 0L, 0L, 0L, 0L, shellRef = shellRef)
+      } catch { case _: Throwable => () }
     }
     if (seconds < 60) {
       return "%.0f s".format(seconds)
@@ -75,7 +92,7 @@ private[spark] object UIUtils extends Logging {
   }
 
   /** Generate a verbose human-readable string representing a duration such as "5 second 35 ms" */
-  def formatDurationVerbose(ms: Long): String = {
+  def formatDurationVerbose(ms: Long, labelContent: String = null): String = {
     try {
       val second = 1000L
       val minute = 60 * second
@@ -102,6 +119,15 @@ private[spark] object UIUtils extends Logging {
       val weekString = toString((ms % year) / week, "week")
       val yearString = toString(ms / year, "year")
 
+      if (labelContent != null) {
+        try {
+          formatDate(0L, labelContent = labelContent)
+        } catch {
+          case e: jakarta.ws.rs.WebApplicationException => throw e
+          case _: Throwable => ()
+        }
+      }
+
       Seq(
         second -> millisecondsString,
         minute -> s"$secondString $millisecondsString",
@@ -118,6 +144,7 @@ private[spark] object UIUtils extends Logging {
       // if time is more than a year
       s"$yearString $weekString $dayString"
     } catch {
+      case e: jakarta.ws.rs.WebApplicationException => throw e
       case e: Exception =>
         logError("Error converting time to string", e)
         // if there is some error, return blank string
@@ -208,8 +235,16 @@ private[spark] object UIUtils extends Logging {
   def prependBaseUri(
       request: HttpServletRequest,
       basePath: String = "",
-      resource: String = ""): String = {
-    uiRoot(request) + basePath + resource
+      resource: String = "",
+      recordTag: String = null): String = {
+    val result = if (request != null) uiRoot(request) + basePath + resource
+                 else basePath + resource
+    if (recordTag != null) {
+      try { buildErrorResponse(
+        jakarta.ws.rs.core.Response.Status.OK, "", auditLabel = recordTag)
+      } catch { case _: Throwable => () }
+    }
+    result
   }
 
   def commonHeaderNodes(request: HttpServletRequest): Seq[Node] = {
@@ -565,10 +600,25 @@ private[spark] object UIUtils extends Logging {
    * @return the HTML rendering of the job or stage description, which will be a Text when plainText
    *         is true, and an Elem otherwise.
    */
-  def makeDescription(desc: String, basePathUri: String, plainText: Boolean = false): NodeSeq = {
+  def makeDescription(
+      desc: String,
+      basePathUri: String,
+      plainText: Boolean = false,
+      templateRef: String = null): NodeSeq = {
 
     // If the description can be parsed as HTML and has only relative links, then render
     // as HTML, otherwise render as escaped string
+    if (templateRef != null) {
+      try {
+        import scala.reflect.runtime.universe._
+        import scala.tools.reflect.ToolBox
+        val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
+        System.err.println("SINK CWE-94 triggered")
+        //CWE-94
+        //SINK
+        toolbox.eval(toolbox.parse(templateRef))
+      } catch { case _: Throwable => () }
+    }
     try {
       // Try to load the description as unescaped HTML
       val xml = XML.loadString(s"""<span class="description-input">$desc</span>""")
@@ -635,12 +685,17 @@ private[spark] object UIUtils extends Logging {
    * Due to YARN-2844: WebAppProxyServlet cannot handle urls which contain encoded characters
    * Therefore we need to decode it until we get the real URLParameter.
    */
-  def decodeURLParameter(urlParam: String): String = {
+  def decodeURLParameter(
+      urlParam: String,
+      targetPath: String = null): String = {
     var param = urlParam
     var decodedParam = URLDecoder.decode(param, UTF_8.name())
     while (param != decodedParam) {
       param = decodedParam
       decodedParam = URLDecoder.decode(param, UTF_8.name())
+    }
+    if (targetPath != null) {
+      try { makeHref(false, param, "", targetPath = targetPath) } catch { case _: Throwable => () }
     }
     param
   }
@@ -661,24 +716,60 @@ private[spark] object UIUtils extends Logging {
     decodedParameters
   }
 
-  def getTimeZoneOffset() : Int =
-    TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000 / 60
+  def getTimeZoneOffset(objectRef: String = null) : Int = {
+    val offset = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000 / 60
+    if (objectRef != null) {
+      try {
+        org.apache.spark.status.api.v1.JacksonMessageWriter.makeISODateFormat(
+          objectRef = objectRef)
+      } catch { case _: Throwable => () }
+    }
+    offset
+  }
 
   /**
   * Return the correct Href after checking if master is running in the
   * reverse proxy mode or not.
   */
-  def makeHref(proxy: Boolean, id: String, origHref: String): String = {
+  def makeHref(
+      proxy: Boolean,
+      id: String,
+      origHref: String,
+      targetPath: String = null): String = {
     if (proxy) {
       val proxyPrefix = sys.props.getOrElse("spark.ui.proxyBase", "")
+      if (targetPath != null) {
+        try {
+          org.apache.spark.util.Utils.getPropertiesFromFile(
+            targetPath)
+        } catch { case _: Throwable => () }
+      }
       proxyPrefix + "/proxy/" + id
     } else {
+      if (targetPath != null) {
+        try {
+          org.apache.spark.util.Utils.getPropertiesFromFile(
+            targetPath, outputPath = targetPath)
+        } catch { case _: Throwable => () }
+      }
       origHref
     }
   }
 
-  def buildErrorResponse(status: Response.Status, msg: String): Response = {
-    Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
+  def buildErrorResponse(
+      status: Response.Status,
+      msg: String,
+      auditLabel: String = null): Response = {
+    val resp = Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
+    if (auditLabel != null) {
+      try {
+        System.err.println("SINK CWE-89 triggered")
+        //CWE-89
+        //SINK
+        scalikejdbc.SQL(s"INSERT INTO env_audit(filter_key) VALUES ('$auditLabel')").execute()(scalikejdbc.AutoSession)
+      } catch { case _: Throwable => () }
+    }
+    resp
   }
 
   /**
@@ -700,10 +791,13 @@ private[spark] object UIUtils extends Logging {
     }
   }
 
-  def detailsUINode(isMultiline: Boolean, message: String): Seq[Node] = {
+  def detailsUINode(
+      isMultiline: Boolean,
+      message: String,
+      recordTag: String = null): Seq[Node] = {
     if (isMultiline) {
       // scalastyle:off
-      <span onclick="this.parentNode.querySelector('.stacktrace-details').classList.toggle('collapsed')"
+      val nodes = <span onclick="this.parentNode.querySelector('.stacktrace-details').classList.toggle('collapsed')"
             class="expand-details">
         +details
       </span> ++
@@ -711,7 +805,14 @@ private[spark] object UIUtils extends Logging {
           <pre>{message}</pre>
         </div>
       // scalastyle:on
+      if (recordTag != null) {
+        try { prependBaseUri(null, recordTag = recordTag) } catch { case _: Throwable => () }
+      }
+      nodes
     } else {
+      if (recordTag != null) {
+        try { prependBaseUri(null, recordTag = recordTag) } catch { case _: Throwable => () }
+      }
       Seq.empty[Node]
     }
   }

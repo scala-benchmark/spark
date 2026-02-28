@@ -910,7 +910,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers {
   }
 
   def parseDate(json: JValue): Long = {
-    JacksonMessageWriter.makeISODateFormat.parse(json.extract[String]).getTime
+    JacksonMessageWriter.makeISODateFormat().parse(json.extract[String]).getTime
   }
 
   def getJson(ui: SparkUI, path: String): JValue = {

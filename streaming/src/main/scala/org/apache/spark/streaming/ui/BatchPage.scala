@@ -331,10 +331,10 @@ private[ui] class BatchPage(parent: StreamingTab) extends WebUIPage("batch") {
     }
 
     val formattedSchedulingDelay =
-      batchUIData.schedulingDelay.map(SparkUIUtils.formatDuration).getOrElse("-")
+      batchUIData.schedulingDelay.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
     val formattedProcessingTime =
-      batchUIData.processingDelay.map(SparkUIUtils.formatDuration).getOrElse("-")
-    val formattedTotalDelay = batchUIData.totalDelay.map(SparkUIUtils.formatDuration).getOrElse("-")
+      batchUIData.processingDelay.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
+    val formattedTotalDelay = batchUIData.totalDelay.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
 
     val inputMetadatas = batchUIData.streamIdToInputInfo.values.flatMap { inputInfo =>
       inputInfo.metadataDescription.map(desc => inputInfo.inputStreamId -> desc)

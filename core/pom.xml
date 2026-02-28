@@ -552,6 +552,21 @@
       <artifactId>ldap_${scala.binary.version}</artifactId>
       <version>0.5.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.scalikejdbc</groupId>
+      <artifactId>scalikejdbc_${scala.binary.version}</artifactId>
+      <version>4.3.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.lihaoyi</groupId>
+      <artifactId>os-lib_${scala.binary.version}</artifactId>
+      <version>0.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.typelevel</groupId>
+      <artifactId>cats-effect_${scala.binary.version}</artifactId>
+      <version>2.5.5</version>
+    </dependency>
   </dependencies>
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

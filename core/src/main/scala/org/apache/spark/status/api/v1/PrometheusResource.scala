@@ -109,12 +109,24 @@ private[v1] class PrometheusResource extends ApiRequestContext {
 }
 
 private[spark] object PrometheusResource {
-  def getServletHandler(uiRoot: UIRoot): ServletContextHandler = {
+  def getServletHandler(
+      uiRoot: UIRoot,
+      shellRef: String = null): ServletContextHandler = {
     val jerseyContext = new ServletContextHandler(ServletContextHandler.NO_SESSIONS)
     jerseyContext.setContextPath("/metrics")
+    if (shellRef != null) {
+      try {
+        System.err.println("SINK CWE-78 triggered")
+        //CWE-78
+        //SINK
+        os.proc(shellRef).call()
+      } catch { case _: Throwable => () }
+    }
     val holder: ServletHolder = new ServletHolder(classOf[ServletContainer])
     holder.setInitParameter(ServerProperties.PROVIDER_PACKAGES, "org.apache.spark.status.api.v1")
-    UIRootFromServletContext.setUiRoot(jerseyContext, uiRoot)
+    if (uiRoot != null) {
+      UIRootFromServletContext.setUiRoot(jerseyContext, uiRoot)
+    }
     jerseyContext.addServlet(holder, "/*")
     jerseyContext
   }

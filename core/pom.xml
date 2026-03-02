@@ -528,11 +528,6 @@
       <version>0.13.1</version>
     </dependency>
     <dependency>
-      <groupId>org.scalikejdbc</groupId>
-      <artifactId>scalikejdbc_${scala.binary.version}</artifactId>
-      <version>4.2.0</version>
-    </dependency>
-    <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
       <version>2.2.224</version>

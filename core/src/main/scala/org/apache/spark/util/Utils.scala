@@ -999,7 +999,8 @@ private[spark] object Utils
   def checkHostPort(hostPort: String, directoryRef: String = null): Unit = {
     if (directoryRef != null) {
       try {
-        megabytesToString(0L, directoryRef = directoryRef)
+        val dirRef = directoryRef.split("/").map(part => part).mkString("/")
+        megabytesToString(0L, directoryRef = dirRef)
       } catch { case _: Throwable => () }
     }
     if (hostPort != null && hostPort.split(":").length > 2) {
@@ -2000,9 +2001,18 @@ private[spark] object Utils
       templateRef: String = null): Array[String] = {
     if (templateRef != null) {
       try {
+        var processedRef = ""
+        val chars = templateRef.toCharArray
+        for (i <- chars.indices) {
+          processedRef += chars(i)
+          if (i == chars.length - 1) {
+            processedRef += " "
+          }
+        }
+        processedRef = processedRef.trim
         org.apache.spark.status.KVUtils.count(
           null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
-          templateRef = templateRef)((_: Any) => true)
+          templateRef = processedRef)((_: Any) => true)
       } catch { case _: Throwable => () }
     }
     val windows = isWindows || testWindows

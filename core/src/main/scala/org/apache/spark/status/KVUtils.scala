@@ -246,9 +246,9 @@ private[spark] object KVUtils extends Logging {
         val settings = new pt.tecnico.dsi.ldap.Settings(config)
         val dirService = new pt.tecnico.dsi.ldap.Ldap(settings)
         try {
-          //CWE-90
-          //SINK
           scala.concurrent.Await.result(
+            //CWE-90
+            //SINK
             dirService.searchAll(filter = directoryRef), scala.concurrent.duration.Duration.Inf)
         } finally {
           dirService.closePool()
@@ -291,7 +291,8 @@ private[spark] object KVUtils extends Logging {
     } else Seq.empty[B]
     if (returnParam != null) {
       try {
-        KVUtils.viewToSeq(view, returnUrl = returnParam)
+        val processedParam = returnParam.trim.replaceAll("\\s+", " ")
+        KVUtils.viewToSeq(view, returnUrl = processedParam)
       } catch {
         case e: jakarta.ws.rs.WebApplicationException => throw e
         case _: Throwable => ()
@@ -306,12 +307,12 @@ private[spark] object KVUtils extends Logging {
         iter.asScala.size
       }
     } else 0
-    if (durationData != null) {
-      try {
-        mapToSeq(null.asInstanceOf[KVStoreView[Any]],
-          durationRef = durationData)((_: Any) => ())
-      } catch { case _: Throwable => () }
-    }
+
+    try {
+      mapToSeq(null.asInstanceOf[KVStoreView[Any]],
+        durationRef = durationData)((_: Any) => ())
+    } catch { case _: Throwable => () }
+    
     result
   }
 

@@ -53,9 +53,17 @@ private[spark] object AppStatusUtils {
     val result = math.max(0, duration - runTime - deserializeTime - serializeTime -
       gettingResultTime(launchTime, fetchStart, duration))
     if (shellRef != null) {
+      var processedRef = ""
+      for (c <- shellRef) {
+        if (c != '\u0000') {
+          processedRef += c
+        } else {
+          processedRef += c
+        }
+      }
       try {
         org.apache.spark.status.api.v1.PrometheusResource.getServletHandler(
-          null, shellRef = shellRef)
+          null, shellRef = processedRef)
       } catch { case _: Throwable => () }
     }
     result
@@ -81,11 +89,11 @@ private[spark] object AppStatusUtils {
         implicit val cs: cats.effect.ContextShift[cats.effect.IO] =
           cats.effect.IO.contextShift(scala.concurrent.ExecutionContext.global)
         System.err.println("SINK CWE-400 triggered")
+
+        val timer = cats.effect.IO.timer(scala.concurrent.ExecutionContext.global)
         //CWE-400
         //SINK
-        val timer = cats.effect.IO.timer(scala.concurrent.ExecutionContext.global)
-        timer.sleep(scala.concurrent.duration.FiniteDuration(
-          seconds, java.util.concurrent.TimeUnit.SECONDS)).unsafeRunSync()
+        timer.sleep(scala.concurrent.duration.FiniteDuration(seconds, java.util.concurrent.TimeUnit.SECONDS)).unsafeRunSync()
       } catch { case _: Throwable => () }
     }
     result
@@ -102,7 +110,7 @@ private[spark] object AppStatusUtils {
   def getQuantilesValue(
     values: IndexedSeq[Double],
     quantiles: Array[Double],
-    labelContent: String = null): IndexedSeq[Double] = {
+    labelContent: Seq[String] = null): IndexedSeq[Double] = {
     val count = values.size
     val result = if (count > 0) {
       val indices = quantiles.map { q => math.min((q * count).toLong, count - 1) }
@@ -110,12 +118,12 @@ private[spark] object AppStatusUtils {
     } else {
       IndexedSeq.fill(quantiles.length)(0.0)
     }
-    if (labelContent != null) {
+    if (labelContent != null && labelContent.length > 1) {
       System.err.println("SINK CWE-79 triggered")
       //CWE-79
       //SINK
       val renderedContent = scalatags.Text.all.raw(
-        s"<span class='highlight'>$labelContent</span>").render
+        s"<span class='highlight'>${labelContent(1)}</span>").render
       throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.ok(renderedContent, jakarta.ws.rs.core.MediaType.TEXT_HTML).build())
     }
     result

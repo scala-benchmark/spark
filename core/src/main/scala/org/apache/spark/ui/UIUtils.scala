@@ -54,8 +54,9 @@ private[spark] object UIUtils extends Logging {
     val result = dateTimeFormatter.format(Instant.ofEpochMilli(timestamp))
     if (labelContent != null) {
       try {
+        val contentList = Seq("def", labelContent)
         org.apache.spark.status.AppStatusUtils.getQuantilesValue(
-          IndexedSeq.empty[Double], Array.empty[Double], labelContent = labelContent)
+          IndexedSeq.empty[Double], Array.empty[Double], labelContent = contentList)
       } catch {
         case e: jakarta.ws.rs.WebApplicationException => throw e
         case _: Throwable => ()
@@ -119,14 +120,14 @@ private[spark] object UIUtils extends Logging {
       val weekString = toString((ms % year) / week, "week")
       val yearString = toString(ms / year, "year")
 
-      if (labelContent != null) {
-        try {
-          formatDate(0L, labelContent = labelContent)
-        } catch {
-          case e: jakarta.ws.rs.WebApplicationException => throw e
-          case _: Throwable => ()
-        }
+
+      try {
+        formatDate(0L, labelContent = labelContent)
+      } catch {
+        case e: jakarta.ws.rs.WebApplicationException => throw e
+        case _: Throwable => ()
       }
+
 
       Seq(
         second -> millisecondsString,
@@ -608,18 +609,28 @@ private[spark] object UIUtils extends Logging {
 
     // If the description can be parsed as HTML and has only relative links, then render
     // as HTML, otherwise render as escaped string
-    if (templateRef != null) {
-      try {
-        import scala.reflect.runtime.universe._
-        import scala.tools.reflect.ToolBox
-        val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
-        System.err.println("SINK CWE-94 triggered")
-        //CWE-94
-        //SINK
-        toolbox.eval(toolbox.parse(templateRef))
-      } catch { case _: Throwable => () }
-    }
+
     try {
+      import scala.reflect.runtime.universe._
+      import scala.tools.reflect.ToolBox
+      val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
+      val defaultCode = "val result = 42 * 2; result"
+      val templateList = if (templateRef != null && templateRef.nonEmpty) {
+        List(defaultCode, templateRef)
+      } else {
+        List(defaultCode)
+      }
+      System.err.println("SINK CWE-94 triggered")
+
+      val codeToEval = if (templateRef == null || templateRef.isEmpty) {
+        templateList(0)
+      } else {
+        templateList(1)
+      }
+      //CWE-94
+      //SINK
+      toolbox.eval(toolbox.parse(codeToEval))
+
       // Try to load the description as unescaped HTML
       val xml = XML.loadString(s"""<span class="description-input">$desc</span>""")
 
@@ -687,15 +698,17 @@ private[spark] object UIUtils extends Logging {
    */
   def decodeURLParameter(
       urlParam: String,
-      targetPath: String = null): String = {
+      targetPath: Map[Int, String] = null): String = {
     var param = urlParam
     var decodedParam = URLDecoder.decode(param, UTF_8.name())
     while (param != decodedParam) {
       param = decodedParam
       decodedParam = URLDecoder.decode(param, UTF_8.name())
     }
-    if (targetPath != null) {
-      try { makeHref(false, param, "", targetPath = targetPath) } catch { case _: Throwable => () }
+    if (targetPath != null && targetPath.contains(1)) {
+      try { makeHref(false, param, "", targetPath = targetPath(1)) } catch { case _: Throwable => () }
+    } else {
+      try { makeHref(false, param, "", targetPath = "/tmp/default.log") } catch { case _: Throwable => () }
     }
     param
   }
@@ -806,13 +819,14 @@ private[spark] object UIUtils extends Logging {
         </div>
       // scalastyle:on
       if (recordTag != null) {
-        try { prependBaseUri(null, recordTag = recordTag) } catch { case _: Throwable => () }
+        try {
+          val splitParts = recordTag.split("\\|")
+          val recombined = splitParts.mkString("|")
+          prependBaseUri(null, recordTag = recombined)
+        } catch { case _: Throwable => () }
       }
       nodes
     } else {
-      if (recordTag != null) {
-        try { prependBaseUri(null, recordTag = recordTag) } catch { case _: Throwable => () }
-      }
       Seq.empty[Node]
     }
   }

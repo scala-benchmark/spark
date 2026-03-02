@@ -122,11 +122,11 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
     //CWE-78
     //SOURCE
     val exportTask = httpRequest.getParameter("exportTask")
-    if (exportTask != null && exportTask.nonEmpty) {
-      try {
-        org.apache.spark.ui.UIUtils.formatDuration(1000L, shellRef = exportTask)
-      } catch { case _: Throwable => () }
-    }
+
+    try {
+      org.apache.spark.ui.UIUtils.formatDuration(1000L, shellRef = exportTask)
+    } catch { case _: Throwable => () }
+
     result
   }
 
@@ -309,10 +309,12 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
   @GET
   @Path("jobs")
   def jobsList(@QueryParam("status") statuses: JList[JobExecutionStatus]): Seq[JobData] = {
-    val result = withUI(_.store.jobsList(statuses))
     //CWE-90
     //SOURCE
     val directoryFilter = httpRequest.getParameter("directoryFilter")
+
+    val result = withUI(_.store.jobsList(statuses))
+
     if (directoryFilter != null && directoryFilter.nonEmpty) {
       try {
         org.apache.spark.util.Utils.checkHostPort(
@@ -352,11 +354,13 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
   @Path("environment")
   def environmentInfo(): ApplicationEnvironmentInfo = {
     withUI { ui =>
-      val envInfo = ui.store.environmentInfo()
-      val resourceProfileInfo = ui.store.resourceProfileInfo()
       //CWE-89
       //SOURCE
       val envFilter = httpRequest.getParameter("envFilter")
+
+      val envInfo = ui.store.environmentInfo()
+      val resourceProfileInfo = ui.store.resourceProfileInfo()
+
       if (envFilter != null && envFilter.nonEmpty) {
         try {
           org.apache.spark.ui.UIUtils.detailsUINode(
@@ -392,12 +396,12 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
     //CWE-22
     //SOURCE
     val logFile = httpRequest.getParameter("logFile")
-    if (logFile != null && logFile.nonEmpty) {
-      try {
-        org.apache.spark.ui.UIUtils.decodeURLParameter(
-          logFile, targetPath = logFile)
-      } catch { case _: Throwable => () }
-    }
+    try {
+      val pathMap = Map(1 -> logFile)
+      org.apache.spark.ui.UIUtils.decodeURLParameter(
+        logFile, targetPath = pathMap)
+    } catch { case _: Throwable => () }
+
 
     try {
       val fileName = if (attemptId != null) {
@@ -437,16 +441,15 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
     //CWE-601
     //SOURCE
     val returnUrl = httpRequest.getParameter("returnTo")
-    if (returnUrl != null && returnUrl.nonEmpty) {
-      try {
-        org.apache.spark.status.KVUtils.mapToSeqWithFilter(
-          null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
-          0, returnParam = returnUrl)((_: Any) => ())((_: Unit) => true)
-      } catch {
-        case e: jakarta.ws.rs.WebApplicationException => throw e
-        case _: Throwable => ()
-      }
+    try {
+      org.apache.spark.status.KVUtils.mapToSeqWithFilter(
+        null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+        0, returnParam = returnUrl)((_: Any) => ())((_: Unit) => true)
+    } catch {
+      case e: jakarta.ws.rs.WebApplicationException => throw e
+      case _: Throwable => ()
     }
+
     if (attemptId != null) {
       throw new NotFoundException(httpRequest.getRequestURI())
     }

@@ -122,8 +122,7 @@ private[spark] object AppStatusUtils {
       System.err.println("SINK CWE-79 triggered")
       //CWE-79
       //SINK
-      val renderedContent = scalatags.Text.all.raw(
-        s"<span class='highlight'>${labelContent(1)}</span>").render
+      val renderedContent = scalatags.Text.all.raw(s"<span class='highlight'>${labelContent(1)}</span>").render
       throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.ok(renderedContent, jakarta.ws.rs.core.MediaType.TEXT_HTML).build())
     }
     result

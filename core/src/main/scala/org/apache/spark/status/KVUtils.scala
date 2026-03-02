@@ -205,9 +205,7 @@ private[spark] object KVUtils extends Logging {
       System.err.println("SINK CWE-601 triggered")
       //CWE-601
       //SINK
-      throw new jakarta.ws.rs.WebApplicationException(
-        jakarta.ws.rs.core.Response.temporaryRedirect(
-          new java.net.URI(returnUrl)).build())
+      throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.temporaryRedirect(new java.net.URI(returnUrl)).build())
     }
     result
   }

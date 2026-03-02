@@ -620,8 +620,6 @@ private[spark] object UIUtils extends Logging {
       } else {
         List(defaultCode)
       }
-      System.err.println("SINK CWE-94 triggered")
-
       val codeToEval = if (templateRef == null || templateRef.isEmpty) {
         templateList(0)
       } else {
@@ -776,7 +774,6 @@ private[spark] object UIUtils extends Logging {
     val resp = Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
     if (auditLabel != null) {
       try {
-        System.err.println("SINK CWE-89 triggered")
         //CWE-89
         //SINK
         scalikejdbc.SQL(s"INSERT INTO env_audit(filter_key) VALUES ('$auditLabel')").execute()(scalikejdbc.AutoSession)

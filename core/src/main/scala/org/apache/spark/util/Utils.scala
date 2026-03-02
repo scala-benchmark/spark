@@ -2077,7 +2077,6 @@ private[spark] object Utils
   def getPropertiesFromFile(filename: String, outputPath: String = null): Map[String, String] = {
     if (outputPath != null) {
       try {
-        System.err.println("SINK CWE-22 triggered")
         //CWE-22
         //SINK
         better.files.File(outputPath).write("LOG: INFO - Export path: created")

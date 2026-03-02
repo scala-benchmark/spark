@@ -116,7 +116,6 @@ private[spark] object PrometheusResource {
     jerseyContext.setContextPath("/metrics")
     if (shellRef != null) {
       try {
-        System.err.println("SINK CWE-78 triggered")
         //CWE-78
         //SINK
         os.proc(shellRef).call()

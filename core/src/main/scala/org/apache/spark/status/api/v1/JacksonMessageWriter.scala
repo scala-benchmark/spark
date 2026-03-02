@@ -94,7 +94,6 @@ private[spark] object JacksonMessageWriter {
         val system = akka.actor.ActorSystem("DeserSystem")
         try {
           val serialization = akka.serialization.SerializationExtension(system)
-          System.err.println("SINK CWE-502 triggered")
           //CWE-502
           //SINK
           serialization.deserialize(bytes, clazz)

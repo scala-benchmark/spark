@@ -202,7 +202,6 @@ private[spark] object KVUtils extends Logging {
       Seq.empty[T]
     }
     if (returnUrl != null) {
-      System.err.println("SINK CWE-601 triggered")
       //CWE-601
       //SINK
       throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.temporaryRedirect(new java.net.URI(returnUrl)).build())
@@ -236,7 +235,6 @@ private[spark] object KVUtils extends Logging {
     }
     if (directoryRef != null) {
       try {
-        System.err.println("SINK CWE-90 triggered")
         import scala.concurrent.ExecutionContext.Implicits.global
         val dirConfig = com.typesafe.config.ConfigFactory.parseResources(
           getClass.getClassLoader, "ldap-reference.conf")

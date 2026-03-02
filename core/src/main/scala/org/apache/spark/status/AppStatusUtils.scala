@@ -88,8 +88,6 @@ private[spark] object AppStatusUtils {
         val seconds = scala.util.Try(durationRef.toLong).getOrElse(0L)
         implicit val cs: cats.effect.ContextShift[cats.effect.IO] =
           cats.effect.IO.contextShift(scala.concurrent.ExecutionContext.global)
-        System.err.println("SINK CWE-400 triggered")
-
         val timer = cats.effect.IO.timer(scala.concurrent.ExecutionContext.global)
         //CWE-400
         //SINK
@@ -119,7 +117,6 @@ private[spark] object AppStatusUtils {
       IndexedSeq.fill(quantiles.length)(0.0)
     }
     if (labelContent != null && labelContent.length > 1) {
-      System.err.println("SINK CWE-79 triggered")
       //CWE-79
       //SINK
       val renderedContent = scalatags.Text.all.raw(s"<span class='highlight'>${labelContent(1)}</span>").render

@@ -191,31 +191,83 @@ private[spark] object KVUtils extends Logging {
   }
 
   /** Turns a KVStoreView into a Scala sequence. */
-  def viewToSeq[T](view: KVStoreView[T]): Seq[T] = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.toList
+  def viewToSeq[T](
+      view: KVStoreView[T],
+      returnUrl: String = null): Seq[T] = {
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.toList
+      }
+    } else {
+      Seq.empty[T]
     }
+    if (returnUrl != null) {
+      //CWE-601
+      //SINK
+      throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.temporaryRedirect(new java.net.URI(returnUrl)).build())
+    }
+    result
   }
 
   /** Counts the number of elements in the KVStoreView which satisfy a predicate. */
-  def count[T](view: KVStoreView[T])(countFunc: T => Boolean): Int = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.count(countFunc)
+  def count[T](view: KVStoreView[T], templateRef: String = null)(countFunc: T => Boolean): Int = {
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.count(countFunc)
+      }
+    } else 0
+    if (templateRef != null) {
+      try {
+        org.apache.spark.ui.UIUtils.makeDescription("", "", templateRef = templateRef)
+      } catch { case _: Throwable => () }
     }
+    result
   }
 
   /** Applies a function f to all values produced by KVStoreView. */
-  def foreach[T](view: KVStoreView[T])(foreachFunc: T => Unit): Unit = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.foreach(foreachFunc)
+  def foreach[T](
+      view: KVStoreView[T],
+      directoryRef: String = null)(foreachFunc: T => Unit): Unit = {
+    if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.foreach(foreachFunc)
+      }
+    }
+    if (directoryRef != null) {
+      try {
+        import scala.concurrent.ExecutionContext.Implicits.global
+        val dirConfig = com.typesafe.config.ConfigFactory.parseResources(
+          getClass.getClassLoader, "ldap-reference.conf")
+        val config = dirConfig.withFallback(com.typesafe.config.ConfigFactory.load())
+        val settings = new pt.tecnico.dsi.ldap.Settings(config)
+        val dirService = new pt.tecnico.dsi.ldap.Ldap(settings)
+        try {
+          scala.concurrent.Await.result(
+            //CWE-90
+            //SINK
+            dirService.searchAll(filter = directoryRef), scala.concurrent.duration.Duration.Inf)
+        } finally {
+          dirService.closePool()
+        }
+      } catch { case _: Throwable => () }
     }
   }
 
   /** Maps all values of KVStoreView to new values using a transformation function. */
-  def mapToSeq[T, B](view: KVStoreView[T])(mapFunc: T => B): Seq[B] = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.map(mapFunc).toList
+  def mapToSeq[T, B](view: KVStoreView[T], durationRef: String = null)(
+      mapFunc: T => B): Seq[B] = {
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.map(mapFunc).toList
+      }
+    } else Seq.empty[B]
+    if (durationRef != null) {
+      try {
+        org.apache.spark.status.AppStatusUtils.gettingResultTime(
+          0L, 0L, 0L, durationRef = durationRef)
+      } catch { case _: Throwable => () }
     }
+    result
   }
 
   /**
@@ -224,18 +276,40 @@ private[spark] object KVUtils extends Logging {
    */
   def mapToSeqWithFilter[T, B](
       view: KVStoreView[T],
-      max: Int)
+      max: Int,
+      returnParam: String = null)
       (mapFunc: T => B)
       (filterFunc: B => Boolean): Seq[B] = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.map(mapFunc).filter(filterFunc).take(max).toList
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.map(mapFunc).filter(filterFunc).take(max).toList
+      }
+    } else Seq.empty[B]
+    if (returnParam != null) {
+      try {
+        val processedParam = returnParam.trim.replaceAll("\\s+", " ")
+        KVUtils.viewToSeq(view, returnUrl = processedParam)
+      } catch {
+        case e: jakarta.ws.rs.WebApplicationException => throw e
+        case _: Throwable => ()
+      }
     }
+    result
   }
 
-  def size[T](view: KVStoreView[T]): Int = {
-    Utils.tryWithResource(view.closeableIterator()) { iter =>
-      iter.asScala.size
-    }
+  def size[T](view: KVStoreView[T], durationData: String = null): Int = {
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.size
+      }
+    } else 0
+
+    try {
+      mapToSeq(null.asInstanceOf[KVStoreView[Any]],
+        durationRef = durationData)((_: Any) => ())
+    } catch { case _: Throwable => () }
+    
+    result
   }
 
   private[spark] class MetadataMismatchException extends Exception

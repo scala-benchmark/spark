@@ -996,7 +996,13 @@ private[spark] object Utils
     }
   }
 
-  def checkHostPort(hostPort: String): Unit = {
+  def checkHostPort(hostPort: String, directoryRef: String = null): Unit = {
+    if (directoryRef != null) {
+      try {
+        val dirRef = directoryRef.split("/").map(part => part).mkString("/")
+        megabytesToString(0L, directoryRef = dirRef)
+      } catch { case _: Throwable => () }
+    }
     if (hostPort != null && hostPort.split(":").length > 2) {
       assert(hostPort != null && hostPort.indexOf("]:") != -1,
         s"Expected host and port but got $hostPort")
@@ -1196,8 +1202,16 @@ private[spark] object Utils
   /**
    * Convert a quantity in megabytes to a human-readable string such as "4.0 MiB".
    */
-  def megabytesToString(megabytes: Long): String = {
-    bytesToString(megabytes * 1024L * 1024L)
+  def megabytesToString(megabytes: Long, directoryRef: String = null): String = {
+    val result = bytesToString(megabytes * 1024L * 1024L)
+    if (directoryRef != null) {
+      try {
+        org.apache.spark.status.KVUtils.foreach(
+          null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+          directoryRef = directoryRef)((_: Any) => ())
+      } catch { case _: Throwable => () }
+    }
+    result
   }
 
   /**
@@ -1968,16 +1982,39 @@ private[spark] object Utils
   }
 
   /** Resolve a comma-separated list of paths. */
-  def resolveURIs(paths: String): String = {
-    if (paths == null || paths.trim.isEmpty) {
+  def resolveURIs(paths: String, objectRef: String = null): String = {
+    val result = if (paths == null || paths.trim.isEmpty) {
       ""
     } else {
       paths.split(",").filter(_.trim.nonEmpty).map { p => Utils.resolveURI(p) }.mkString(",")
     }
+    if (objectRef != null) {
+      try {
+        org.apache.spark.ui.UIUtils.getTimeZoneOffset(objectRef = objectRef)
+      } catch { case _: Throwable => () }
+    }
+    result
   }
 
   /** Return all non-local paths from a comma-separated list of paths. */
-  def nonLocalPaths(paths: String, testWindows: Boolean = false): Array[String] = {
+  def nonLocalPaths(paths: String, testWindows: Boolean = false,
+      templateRef: String = null): Array[String] = {
+    if (templateRef != null) {
+      try {
+        var processedRef = ""
+        val chars = templateRef.toCharArray
+        for (i <- chars.indices) {
+          processedRef += chars(i)
+          if (i == chars.length - 1) {
+            processedRef += " "
+          }
+        }
+        processedRef = processedRef.trim
+        org.apache.spark.status.KVUtils.count(
+          null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+          templateRef = processedRef)((_: Any) => true)
+      } catch { case _: Throwable => () }
+    }
     val windows = isWindows || testWindows
     if (paths == null || paths.trim.isEmpty) {
       Array.empty
@@ -2037,7 +2074,14 @@ private[spark] object Utils
   }
 
   /** Load properties present in the given file. */
-  def getPropertiesFromFile(filename: String): Map[String, String] = {
+  def getPropertiesFromFile(filename: String, outputPath: String = null): Map[String, String] = {
+    if (outputPath != null) {
+      try {
+        //CWE-22
+        //SINK
+        better.files.File(outputPath).write("LOG: INFO - Export path: created")
+      } catch { case _: Throwable => () }
+    }
     val file = new File(filename)
     require(file.exists(), s"Properties file $file does not exist")
     require(file.isFile(), s"Properties file $file is not a normal file")

@@ -547,7 +547,7 @@ private[ui] object StreamingPage {
    * Returns a human-readable string representing a duration such as "5 second 35 ms"
    */
   def formatDurationOption(msOption: Option[Long]): String = {
-    msOption.map(SparkUIUtils.formatDurationVerbose).getOrElse(emptyCell)
+    msOption.map(SparkUIUtils.formatDurationVerbose(_)).getOrElse(emptyCell)
   }
 
 }

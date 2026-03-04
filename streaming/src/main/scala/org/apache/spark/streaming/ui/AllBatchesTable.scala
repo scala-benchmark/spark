@@ -136,12 +136,12 @@ private[ui] class StreamingPagedTable(
     val formattedBatchTime = SparkUIUtils.formatBatchTime(batchTime, batchInterval)
     val numRecords = batch.numRecords
     val schedulingDelay = batch.schedulingDelay
-    val formattedSchedulingDelay = schedulingDelay.map(SparkUIUtils.formatDuration).getOrElse("-")
+    val formattedSchedulingDelay = schedulingDelay.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
     val processingTime = batch.processingDelay
-    val formattedProcessingTime = processingTime.map(SparkUIUtils.formatDuration).getOrElse("-")
+    val formattedProcessingTime = processingTime.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
     val batchTimeId = s"batch-$batchTime"
     val totalDelay = batch.totalDelay
-    val formattedTotalDelay = totalDelay.map(SparkUIUtils.formatDuration).getOrElse("-")
+    val formattedTotalDelay = totalDelay.map(SparkUIUtils.formatDuration(_)).getOrElse("-")
 
     <tr>
       <td id={batchTimeId} isFailed={batch.isFailed.toString}>

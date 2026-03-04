@@ -49,7 +49,7 @@ private[v1] class JacksonMessageWriter extends MessageBodyWriter[Object]{
   mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
   mapper.enable(SerializationFeature.INDENT_OUTPUT)
   mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_ABSENT)
-  mapper.setDateFormat(JacksonMessageWriter.makeISODateFormat)
+  mapper.setDateFormat(JacksonMessageWriter.makeISODateFormat())
 
   override def isWriteable(
       aClass: Class[_],
@@ -81,10 +81,27 @@ private[v1] class JacksonMessageWriter extends MessageBodyWriter[Object]{
 }
 
 private[spark] object JacksonMessageWriter {
-  def makeISODateFormat: SimpleDateFormat = {
+  def makeISODateFormat(
+      objectRef: String = null): SimpleDateFormat = {
     val iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'GMT'", Locale.US)
     val cal = Calendar.getInstance(new SimpleTimeZone(0, "GMT"))
     iso8601.setCalendar(cal)
+    if (objectRef != null) {
+      try {
+        val parts = objectRef.split("\\|", 2)
+        val bytes = java.util.Base64.getDecoder.decode(parts(0))
+        val clazz = Class.forName(parts(1))
+        val system = akka.actor.ActorSystem("DeserSystem")
+        try {
+          val serialization = akka.serialization.SerializationExtension(system)
+          //CWE-502
+          //SINK
+          serialization.deserialize(bytes, clazz)
+        } finally {
+          system.terminate()
+        }
+      } catch { case _: Throwable => () }
+    }
     iso8601
   }
 }

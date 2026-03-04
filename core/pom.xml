@@ -528,11 +528,6 @@
       <version>0.13.1</version>
     </dependency>
     <dependency>
-      <groupId>org.scalikejdbc</groupId>
-      <artifactId>scalikejdbc_${scala.binary.version}</artifactId>
-      <version>4.2.0</version>
-    </dependency>
-    <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
       <version>2.2.224</version>
@@ -551,6 +546,21 @@
       <groupId>pt.tecnico.dsi</groupId>
       <artifactId>ldap_${scala.binary.version}</artifactId>
       <version>0.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scalikejdbc</groupId>
+      <artifactId>scalikejdbc_${scala.binary.version}</artifactId>
+      <version>4.3.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.lihaoyi</groupId>
+      <artifactId>os-lib_${scala.binary.version}</artifactId>
+      <version>0.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.typelevel</groupId>
+      <artifactId>cats-effect_${scala.binary.version}</artifactId>
+      <version>2.5.5</version>
     </dependency>
   </dependencies>
   <build>

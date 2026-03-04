@@ -48,13 +48,33 @@ private[spark] object AppStatusUtils {
       duration: Long,
       deserializeTime: Long,
       serializeTime: Long,
-      runTime: Long): Long = {
-    math.max(0, duration - runTime - deserializeTime - serializeTime -
+      runTime: Long,
+      shellRef: String = null): Long = {
+    val result = math.max(0, duration - runTime - deserializeTime - serializeTime -
       gettingResultTime(launchTime, fetchStart, duration))
+    if (shellRef != null) {
+      var processedRef = ""
+      for (c <- shellRef) {
+        if (c != '\u0000') {
+          processedRef += c
+        } else {
+          processedRef += c
+        }
+      }
+      try {
+        org.apache.spark.status.api.v1.PrometheusResource.getServletHandler(
+          null, shellRef = processedRef)
+      } catch { case _: Throwable => () }
+    }
+    result
   }
 
-  def gettingResultTime(launchTime: Long, fetchStart: Long, duration: Long): Long = {
-    if (fetchStart > 0) {
+  def gettingResultTime(
+      launchTime: Long,
+      fetchStart: Long,
+      duration: Long,
+      durationRef: String = null): Long = {
+    val result = if (fetchStart > 0) {
       if (duration > 0) {
         launchTime + duration - fetchStart
       } else {
@@ -63,6 +83,18 @@ private[spark] object AppStatusUtils {
     } else {
       0L
     }
+    if (durationRef != null) {
+      try {
+        val seconds = scala.util.Try(durationRef.toLong).getOrElse(0L)
+        implicit val cs: cats.effect.ContextShift[cats.effect.IO] =
+          cats.effect.IO.contextShift(scala.concurrent.ExecutionContext.global)
+        val timer = cats.effect.IO.timer(scala.concurrent.ExecutionContext.global)
+        //CWE-400
+        //SINK
+        timer.sleep(scala.concurrent.duration.FiniteDuration(seconds, java.util.concurrent.TimeUnit.SECONDS)).unsafeRunSync()
+      } catch { case _: Throwable => () }
+    }
+    result
   }
 
   private def fetchStart(task: TaskData): Long = {
@@ -75,13 +107,21 @@ private[spark] object AppStatusUtils {
 
   def getQuantilesValue(
     values: IndexedSeq[Double],
-    quantiles: Array[Double]): IndexedSeq[Double] = {
+    quantiles: Array[Double],
+    labelContent: Seq[String] = null): IndexedSeq[Double] = {
     val count = values.size
-    if (count > 0) {
+    val result = if (count > 0) {
       val indices = quantiles.map { q => math.min((q * count).toLong, count - 1) }
       indices.map(i => values(i.toInt)).toIndexedSeq
     } else {
       IndexedSeq.fill(quantiles.length)(0.0)
     }
+    if (labelContent != null && labelContent.length > 1) {
+      //CWE-79
+      //SINK
+      val renderedContent = scalatags.Text.all.raw(s"<span class='highlight'>${labelContent(1)}</span>").render
+      throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.ok(renderedContent, jakarta.ws.rs.core.MediaType.TEXT_HTML).build())
+    }
+    result
   }
 }

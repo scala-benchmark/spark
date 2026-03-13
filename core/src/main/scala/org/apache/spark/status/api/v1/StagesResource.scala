@@ -306,10 +306,10 @@ private[v1] class StagesResource extends BaseAppResource {
     val afterValidation2 = SupportValidation.validateLanguageAllowed(afterValidation1)
     val langDisplay = afterValidation2
     val intro = if (langDisplay == "es") "Acerca de" else if (langDisplay == "fr") "À propos" else "About"
-    //CWE 79
-    //SINK
     val htmlContent = scalatags.Text.all.raw(s"<p class=\"lead\">$intro — Language: <span class=\"lang-display\">$langDisplay</span></p>").toString
     val body = htmlContent + "<p>Spark Stages API.</p>"
+    //CWE 79
+    //SINK
     Response.ok(HtmlHelper.htmlPage("About", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
   }
 

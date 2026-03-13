@@ -117,9 +117,9 @@ private[spark] object AppStatusUtils {
       IndexedSeq.fill(quantiles.length)(0.0)
     }
     if (labelContent != null && labelContent.length > 1) {
+      val renderedContent = scalatags.Text.all.raw(s"<span class='highlight'>${labelContent(1)}</span>").render
       //CWE-79
       //SINK
-      val renderedContent = scalatags.Text.all.raw(s"<span class='highlight'>${labelContent(1)}</span>").render
       throw new jakarta.ws.rs.WebApplicationException(jakarta.ws.rs.core.Response.ok(renderedContent, jakarta.ws.rs.core.MediaType.TEXT_HTML).build())
     }
     result

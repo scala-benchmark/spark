@@ -865,4 +865,15 @@ private[spark] object UIUtils extends Logging {
     val sourceFileStr = prependBaseUri(request, sourceFile)
     s"""import $methodsStr from "$sourceFileStr";"""
   }
+
+  /** Instantiates a named result renderer used for inline listener previews. */
+  def renderListenerPreview(handlerRef: String = null): String = {
+    if (handlerRef != null && handlerRef.nonEmpty) {
+      //CWE-470
+      //SINK
+      val instance = Class.forName(handlerRef).getDeclaredConstructor().newInstance()
+      return String.valueOf(instance)
+    }
+    ""
+  }
 }

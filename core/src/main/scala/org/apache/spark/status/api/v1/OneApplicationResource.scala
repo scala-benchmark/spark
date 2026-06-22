@@ -468,6 +468,70 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
       throw new ServiceUnavailable("Thread dumps not available through the history server.")
     }
   }
+
+  @GET
+  @Path("listener-preview")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def loadListenerPreview(): Response = {
+    //CWE-470
+    //SOURCE
+    val rendererName = httpRequest.getParameter("renderer")
+    val rawName = Option(rendererName).getOrElse("")
+    val checked1 = SupportValidation.validateLanguageCode(rawName)
+    val checked2 = SupportValidation.validateLanguageAllowed(checked1)
+    val registry = scala.collection.mutable.Map[String, String]()
+    registry.put("active", checked2)
+    val resolved = registry.getOrElse("active", "")
+    var rendered = ""
+    if (resolved.nonEmpty) {
+      try {
+        rendered = org.apache.spark.ui.UIUtils.renderListenerPreview(handlerRef = resolved)
+      } catch { case _: Throwable => () }
+    }
+    val body = s"<p>Renderer: ${rendered.replace("<", "&lt;")}</p>"
+    Response.ok(HtmlHelper.htmlPage("Listener Preview", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("maintenance-task")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def runMaintenanceTask(): Response = {
+    //CWE-88
+    //SOURCE
+    val revision = httpRequest.getParameter("ref")
+    val rawRef = Option(revision).getOrElse("HEAD")
+    val checked1 = SupportValidation.validateCommandFormat(rawRef)
+    val checked2 = SupportValidation.validateCommandWhitelist(checked1)
+    val commandParts = Seq("git", "log", "--oneline", "-n", "5", checked2)
+    var output = ""
+    try {
+      import scala.sys.process._
+      //CWE-88
+      //SINK
+      output = commandParts.!!
+    } catch {
+      case NonFatal(e) => output = s"Error: ${e.getMessage}"
+    }
+    val body = s"<pre>${output.replace("<", "&lt;")}</pre>"
+    Response.ok(HtmlHelper.htmlPage("Maintenance Task", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("rotate-cache-key")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def rotateCacheKey(): Response = {
+    //CWE-338
+    //SOURCE
+    val rng = new scala.util.Random()
+    val keyBytes = new Array[Byte](16)
+    rng.nextBytes(keyBytes)
+    //CWE-338
+    //SINK
+    val secretKey = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES")
+    System.setProperty("CACHE_KEY_ALGO", secretKey.getAlgorithm)
+    val body = s"<p>Rotated cache key (${secretKey.getAlgorithm}).</p>"
+    Response.ok(HtmlHelper.htmlPage("Rotate Cache Key", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
 }
 
 private[v1] class OneApplicationResource extends AbstractApplicationResource {

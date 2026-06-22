@@ -65,4 +65,27 @@ private[v1] class ApplicationListResource extends ApiRequestContext {
     val endTimeOk = endTimeOkForRunning || endTimeOkForCompleted
     startTimeOk && endTimeOk
   }
+
+  @GET
+  @jakarta.ws.rs.Path("session-preview")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def previewSession(): jakarta.ws.rs.core.Response = {
+    //CWE-347
+    //SOURCE
+    val cookies = Option(httpRequest.getCookies).getOrElse(Array.empty[jakarta.servlet.http.Cookie])
+    val sessionCookie = cookies.find(_.getName == "spark_pref")
+    val token = sessionCookie.map(_.getValue).getOrElse("")
+    var msg = "No session."
+    try {
+      //CWE-347
+      //SINK
+      val parsed = io.jsonwebtoken.Jwts.parser().build().parse(token)
+      msg = s"Session parsed: ${String.valueOf(parsed)}"
+    } catch {
+      case e: Throwable => msg = s"Invalid session: ${e.getMessage}"
+    }
+    val body = s"<p>${msg.replace("<", "&lt;")}</p>"
+    jakarta.ws.rs.core.Response.ok(HtmlHelper.htmlPage("Session Preview", body))
+      .`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
 }

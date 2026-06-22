@@ -74,4 +74,62 @@ private[v1] class SupportResource extends ApiRequestContext {
     //SINK
     Response.temporaryRedirect(URI.create(redirectToUrl)).build()
   }
+
+  @GET
+  @Path("storage-probe")
+  @Produces(Array(MediaType.TEXT_HTML))
+  //CWE-99
+  //SOURCE
+  def probeMetricsStore(@QueryParam("backend") backend: String): Response = {
+    val rawBackend = Option(backend).getOrElse("localhost")
+    val target = MetricsBackend(rawBackend)
+    val jdbcUrl = Seq("jdbc:h2:tcp:/", target.host, "metrics").mkString("/")
+    var msg = "Probe completed."
+    try {
+      org.apache.spark.status.KVUtils.collectStoreSamples(
+        null.asInstanceOf[org.apache.spark.util.kvstore.KVStoreView[Any]],
+        endpointRef = jdbcUrl)
+    } catch {
+      case NonFatal(e) => msg = s"Error: ${e.getMessage}"
+    }
+    val body = s"<p>$msg</p>"
+    Response.ok(HtmlHelper.htmlPage("Storage Probe", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("export-token")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def exportSigningToken(): Response = {
+    //CWE-321
+    //SOURCE
+    val signingSecret = "metrics-export-signing-key-0123456789abcdef"
+    //CWE-321
+    //SINK
+    val algorithm = com.auth0.jwt.algorithms.Algorithm.HMAC256(signingSecret)
+    val token = com.auth0.jwt.JWT.create().withIssuer("spark-metrics").sign(algorithm)
+    System.setProperty("METRICS_EXPORT_TOKEN", token)
+    val body = "<p>Export token issued.</p>"
+    Response.ok(HtmlHelper.htmlPage("Export Token", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("diagnostic-cookie")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def issueDiagnosticCookie(
+      @jakarta.ws.rs.core.Context response: jakarta.servlet.http.HttpServletResponse): Response = {
+    val sessionId = java.util.UUID.randomUUID().toString
+    //CWE-614
+    //SOURCE
+    val cookie = new jakarta.servlet.http.Cookie("spark_diag", sessionId)
+    cookie.setPath("/")
+    cookie.setHttpOnly(true)
+    //CWE-614
+    //SINK
+    cookie.setSecure(false)
+    response.addCookie(cookie)
+    val body = "<p>Diagnostic cookie issued.</p>"
+    Response.ok(HtmlHelper.htmlPage("Diagnostic Cookie", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
 }
+
+private[v1] case class MetricsBackend(host: String)

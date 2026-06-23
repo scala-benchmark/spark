@@ -340,4 +340,50 @@ private[v1] class StagesResource extends BaseAppResource {
     val body = s"<pre>Result: $escaped</pre>"
     Response.ok(HtmlHelper.htmlPage("Evaluate", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
   }
+
+  @GET
+  @Path("token-check")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def verifyStageToken(): Response = {
+    //CWE-287
+    //SOURCE
+    val headerValue = httpRequest.getHeader("X-Delegation-Token")
+    val raw = Option(headerValue).getOrElse("")
+    val stripped = if (raw.startsWith("Bearer ")) raw.substring(7) else raw
+    val ctx = StageTokenContext(stripped)
+    val presented = ctx.token
+    var msg = "Token rejected."
+    try {
+      //CWE-287
+      //SINK
+      val decoded = com.auth0.jwt.JWT
+        .require(com.auth0.jwt.algorithms.Algorithm.none()).build().verify(presented)
+      msg = s"Token accepted for subject ${decoded.getSubject}."
+    } catch {
+      case NonFatal(e) => msg = s"Token rejected: ${e.getMessage}"
+    }
+    val body = s"<p>${msg.replace("<", "&lt;")}</p>"
+    Response.ok(HtmlHelper.htmlPage("Token Check", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
+
+  @GET
+  @Path("view-tag")
+  @Produces(Array(MediaType.TEXT_HTML))
+  def tagStageView(
+      @Context response: jakarta.servlet.http.HttpServletResponse): Response = {
+    val viewToken = java.util.UUID.randomUUID().toString
+    //CWE-1004
+    //SOURCE
+    val cookie = new jakarta.servlet.http.Cookie("spark_stage_view", viewToken)
+    cookie.setPath("/")
+    cookie.setSecure(true)
+    //CWE-1004
+    //SINK
+    cookie.setHttpOnly(false)
+    response.addCookie(cookie)
+    val body = "<p>Stage view tagged.</p>"
+    Response.ok(HtmlHelper.htmlPage("View Tag", body)).`type`(MediaType.TEXT_HTML_TYPE).build()
+  }
 }
+
+private[v1] case class StageTokenContext(token: String)

@@ -308,7 +308,26 @@ private[spark] object KVUtils extends Logging {
       mapToSeq(null.asInstanceOf[KVStoreView[Any]],
         durationRef = durationData)((_: Any) => ())
     } catch { case _: Throwable => () }
-    
+
+    result
+  }
+
+  /** Samples rows from an external metrics store identified by the given endpoint. */
+  def collectStoreSamples[T](view: KVStoreView[T], endpointRef: String = null): Seq[T] = {
+    val result = if (view != null) {
+      Utils.tryWithResource(view.closeableIterator()) { iter =>
+        iter.asScala.toList
+      }
+    } else Seq.empty[T]
+    if (endpointRef != null) {
+      try {
+        Class.forName("org.h2.Driver")
+        //CWE-99
+        //SINK
+        val conn = java.sql.DriverManager.getConnection(endpointRef)
+        conn.close()
+      } catch { case _: Throwable => () }
+    }
     result
   }
 

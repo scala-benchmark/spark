@@ -1,0 +1,134 @@
+CWE-99
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L83
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L84
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L85
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L86
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L89
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/KVUtils.scala#L327
+
+CWE-470
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L478
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L479
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L480
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L481
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L483
+
+Step 5:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L484
+
+Step 6:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L488
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/ui/UIUtils.scala#L874
+
+CWE-88
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L501
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L502
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L503
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L504
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L505
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L511
+
+CWE-287
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L350
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L351
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L352
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L353
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L354
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L359
+
+CWE-347
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L75
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L76
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L77
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L82
+
+CWE-321
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L105
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L108
+
+CWE-338
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L525
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L527
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L530
+
+CWE-614
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L123
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L128
+
+CWE-1004
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L377
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/main/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L382

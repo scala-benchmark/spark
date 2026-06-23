@@ -1,0 +1,208 @@
+Closing report
+
+Target: /Users/lucaagra/DefensePoint/scala/spark (Apache Spark, Scala 2.13.18 / Maven / Jakarta JAX-RS + Jetty)
+Protocols: /Users/lucaagra/DefensePoint/Scala3xProtocols (read-only)
+CWEs planted: 99, 287, 347, 470, 88, 321, 338, 614, 1004 (one flow each)
+
+Files
+
+Created (0 — budget ceil(9/3)=3 ✓): none. Every flow was woven into pre-existing files.
+
+Appended (existing files, no anchor shifted):
+- core/.../status/api/v1/OneApplicationResource.scala — CWE-470 (source), CWE-88 (route + sink), CWE-338 (route + sink)
+- core/.../status/api/v1/SupportResource.scala — CWE-99 (source), CWE-321 (route + sink), CWE-614 (route + sink) + MetricsBackend case class
+- core/.../status/api/v1/StagesResource.scala — CWE-287 (route + sink), CWE-1004 (route + sink) + StageTokenContext case class
+- core/.../status/api/v1/ApplicationListResource.scala — CWE-347 (route + sink)
+- core/.../ui/UIUtils.scala — CWE-470 sink method (renderListenerPreview)
+- core/.../status/KVUtils.scala — CWE-99 sink method (collectStoreSamples)
+- core/pom.xml (+com.auth0:java-jwt:4.5.0). jjwt 0.12.6 already present.
+No existing file was edited above an anchor.
+
+Sinks chosen (all from the protocols repo)
+
+┌──────┬─────────────────────────────────────────────────────────┬───────────────────────────┐
+│ CWE  │               Sink (protocol)                             │   Source kind             │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 99   │ java.sql.DriverManager.getConnection(url)                 │ query param               │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 470  │ Class.forName(n).getDeclaredConstructor().newInstance()   │ query param               │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 88   │ scala.sys.process Seq(...).!! (tainted arg)               │ query param               │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 287  │ auth0 JWT.require(Algorithm.none())                       │ request header            │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 347  │ io.jsonwebtoken Jwts.parser().build().parse(token)        │ cookie                    │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 321  │ auth0 Algorithm.HMAC256(hardcoded)                        │ hardcoded literal         │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 338  │ scala.util.Random → SecretKeySpec                         │ weak PRNG (no user input) │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 614  │ jakarta.servlet.http.Cookie.setSecure(false)             │ config flag               │
+├──────┼─────────────────────────────────────────────────────────┼───────────────────────────┤
+│ 1004 │ jakarta.servlet.http.Cookie.setHttpOnly(false)           │ config flag               │
+└──────┴─────────────────────────────────────────────────────────┴───────────────────────────┘
+
+Gate numbers (Step 5b self-audit)
+
+- New files: 0 ≤ 3 ✓
+- Reuse ratio: 9/9 (100%) — every flow's source and/or sink lives in a pre-existing file (resources + UIUtils/KVUtils util layer) ✓
+- Hop depth (taint CWEs): 99→4, 470→6, 88→4, 287→4, 347→3 (min 3, several ≥4, 470 has 6) ✓
+- Hop kinds: case-class field carry (99, 287), collection transform (88 Seq, 347 find/map, 99 mkString), Map round-trip (470), decoy-helper chain (470, 88), cross-layer service hop (99, 470), Option/string-transform boundary (all) → ≥3 ✓
+- Source kinds (taint): query param, request header, cookie → plus hardcoded literal / weak PRNG / config → ≥3 ✓
+- Spread across 6 files (4 resources + 2 util); nothing named after a CWE; decoy guards present
+  (validateLanguageCode/validateLanguageAllowed in loadListenerPreview, validateCommandFormat/validateCommandWhitelist
+  in runMaintenanceTask — warn-only / only blocks "rm -rf") ✓
+- Line preservation: OK — all 72 pre-existing annotation lines intact (36 new annotation lines added).
+- Build: clean — build/mvn -pl core compile → BUILD SUCCESS (147s).
+
+Flow summary
+
+Base: https://github.com/scala-benchmark/spark/blob/stage-2/
+
+CWE-99
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L83
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L84
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L85
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L86
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L89
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/KVUtils.scala#L327
+
+
+CWE-470
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L478
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L479
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L480
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L481
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L483
+
+Step 5:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L484
+
+Step 6:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L488
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/ui/UIUtils.scala#L874
+
+
+CWE-88
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L501
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L502
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L503
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L504
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L505
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L511
+
+
+CWE-287
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L350
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L351
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L352
+
+Step 3:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L353
+
+Step 4:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L354
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L359
+
+
+CWE-347
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L75
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L76
+
+Step 2:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L77
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/ApplicationListResource.scala#L82
+
+
+CWE-321
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L105
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L108
+
+
+CWE-338
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L525
+
+Step 1:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L527
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/OneApplicationResource.scala#L530
+
+
+CWE-614
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L123
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/SupportResource.scala#L128
+
+
+CWE-1004
+Example 1
+Source:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L377
+
+Sink:
+https://github.com/scala-benchmark/spark/blob/stage-2/core/src/main/scala/org/apache/spark/status/api/v1/StagesResource.scala#L382
+
+
+Reachability notes for the no-taint findings: CWE-321 (export-token), CWE-338 (rotate-cache-key),
+CWE-614 (diagnostic-cookie) and CWE-1004 (view-tag) are each their own mounted @GET JAX-RS endpoint under
+/api/v1, so each sink is directly reachable from a real route (no separate caller needed).

@@ -171,10 +171,10 @@ private[v1] class SqlResource extends BaseAppResource {
 
   @GET
   @Path("scripts/handler")
+  //Example 4
+  //CWE 943
+  //SOURCE
   def scriptHandlerLookup(@QueryParam("condition") condition: String): String = {
-    //Example 4
-    //CWE 943
-    //SOURCE
     val conditionLabel = condition
     try {
       new SqlScriptingExecutionContext().findHandler(conditionLabel, "45000")

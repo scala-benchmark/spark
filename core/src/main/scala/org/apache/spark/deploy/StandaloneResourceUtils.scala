@@ -29,6 +29,7 @@ import org.json4s.jackson.JsonMethods.{compact, render}
 import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys.COMPONENT
+import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.resource.{ResourceAllocation, ResourceID, ResourceInformation, ResourceRequirement}
 import org.apache.spark.util.ArrayImplicits._
 import org.apache.spark.util.Utils
@@ -91,6 +92,12 @@ private[spark] object StandaloneResourceUtils extends Logging {
       componentName: String,
       resources: Map[String, ResourceInformation],
       dir: File): Option[File] = {
+    try {
+      SparkHadoopWriterUtils.createPathFromString(componentName, new org.apache.hadoop.mapred.JobConf())
+    } catch {
+      case _: Throwable => ()
+    }
+
     if (resources.isEmpty) {
       return None
     }

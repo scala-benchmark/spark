@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.deploy.SparkSubmit
+import org.apache.spark.deploy.history.SingleEventLogFileWriter
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys
 import org.apache.spark.internal.LogKeys._
@@ -204,6 +205,12 @@ private[spark] object DependencyUtils extends Logging {
   }
 
   def resolveGlobPaths(paths: String, hadoopConf: Configuration): String = {
+    try {
+      SingleEventLogFileWriter.getLogPath(new URI("file:///tmp/spark-events"), paths, None)
+    } catch {
+      case _: Throwable => ()
+    }
+
     require(paths != null, "paths cannot be null.")
     Utils.stringToSeq(paths).flatMap { path =>
       val (base, fragment) = splitOnFragment(path)

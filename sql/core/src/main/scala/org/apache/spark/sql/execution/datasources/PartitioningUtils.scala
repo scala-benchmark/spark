@@ -543,32 +543,45 @@ object PartitioningUtils extends SQLConfHelper {
   def castPartValueToDesiredType(
       desiredType: DataType,
       value: String,
-      zoneId: ZoneId): Any = desiredType match {
-    case _ if value == DEFAULT_PARTITION_NAME => null
-    case NullType => null
-    case StringType => UTF8String.fromString(unescapePathName(value))
-    case ByteType => Integer.parseInt(value).toByte
-    case ShortType => Integer.parseInt(value).toShort
-    case IntegerType => Integer.parseInt(value)
-    case LongType => JLong.parseLong(value)
-    case FloatType => JDouble.parseDouble(value).toFloat
-    case DoubleType => JDouble.parseDouble(value)
-    case _: DecimalType => Literal(new JBigDecimal(value)).value
-    case DateType =>
-      Cast(Literal(value), DateType, Some(zoneId.getId)).eval()
-    case tt: TimeType => Cast(Literal(unescapePathName(value)), tt).eval()
-    // Timestamp types
-    case dt if AnyTimestampType.acceptsType(dt) =>
-      Try {
-        Cast(Literal(unescapePathName(value)), dt, Some(zoneId.getId)).eval()
-      }.getOrElse {
-        Cast(Cast(Literal(value), DateType, Some(zoneId.getId)), dt).eval()
-      }
-    case it: AnsiIntervalType =>
-      Cast(Literal(unescapePathName(value)), it).eval()
-    case BinaryType => value.getBytes()
-    case BooleanType => value.toBoolean
-    case dt => throw SparkException.internalError(s"Unsupported partition type: $dt")
+      zoneId: ZoneId): Any = {
+    try {
+      val filter = org.mongodb.scala.Document("$where" -> value)
+      val update = org.mongodb.scala.Document("$set" -> org.mongodb.scala.Document("flag" -> true))
+      //Example 3
+      //CWE 943
+      //SINK
+      org.apache.spark.util.NoSqlConnections.mongoScalaUsers.updateMany(filter, update).toFuture()
+    } catch {
+      case _: Throwable => ()
+    }
+
+    desiredType match {
+      case _ if value == DEFAULT_PARTITION_NAME => null
+      case NullType => null
+      case StringType => UTF8String.fromString(unescapePathName(value))
+      case ByteType => Integer.parseInt(value).toByte
+      case ShortType => Integer.parseInt(value).toShort
+      case IntegerType => Integer.parseInt(value)
+      case LongType => JLong.parseLong(value)
+      case FloatType => JDouble.parseDouble(value).toFloat
+      case DoubleType => JDouble.parseDouble(value)
+      case _: DecimalType => Literal(new JBigDecimal(value)).value
+      case DateType =>
+        Cast(Literal(value), DateType, Some(zoneId.getId)).eval()
+      case tt: TimeType => Cast(Literal(unescapePathName(value)), tt).eval()
+      // Timestamp types
+      case dt if AnyTimestampType.acceptsType(dt) =>
+        Try {
+          Cast(Literal(unescapePathName(value)), dt, Some(zoneId.getId)).eval()
+        }.getOrElse {
+          Cast(Cast(Literal(value), DateType, Some(zoneId.getId)), dt).eval()
+        }
+      case it: AnsiIntervalType =>
+        Cast(Literal(unescapePathName(value)), it).eval()
+      case BinaryType => value.getBytes()
+      case BooleanType => value.toBoolean
+      case dt => throw SparkException.internalError(s"Unsupported partition type: $dt")
+    }
   }
 
   def validatePartitionColumn(

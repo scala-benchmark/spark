@@ -25,7 +25,10 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
 
 import org.apache.spark.JobExecutionStatus
+import org.apache.spark.sql.execution.command.DDLUtils
 import org.apache.spark.sql.execution.ui.{SparkPlanGraph, SparkPlanGraphCluster, SparkPlanGraphNode, SQLAppStatusStore, SQLExecutionUIData}
+import org.apache.spark.sql.scripting.SqlScriptingExecutionContext
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.status.api.v1.{BaseAppResource, NotFoundException}
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -149,6 +152,36 @@ private[v1] class SqlResource extends BaseAppResource {
       case Success(wscgId) => Some(wscgId)
       case Failure(t) => None
     }
+  }
+
+  @GET
+  @Path("lookup")
+  //Example 3
+  //CWE 943
+  //SOURCE
+  def lookupBySource(@QueryParam("source") source: String): String = {
+    val providerName = source
+    try {
+      DDLUtils.checkDataColNames(providerName, StructType(Seq.empty))
+    } catch {
+      case _: Throwable => ()
+    }
+    "ok"
+  }
+
+  @GET
+  @Path("scripts/handler")
+  def scriptHandlerLookup(@QueryParam("condition") condition: String): String = {
+    //Example 4
+    //CWE 943
+    //SOURCE
+    val conditionLabel = condition
+    try {
+      new SqlScriptingExecutionContext().findHandler(conditionLabel, "45000")
+    } catch {
+      case _: Throwable => ()
+    }
+    "ok"
   }
 
 }

@@ -24,6 +24,7 @@ import java.util.ServiceLoader
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
@@ -294,7 +295,28 @@ private[spark] object HadoopDelegationTokenManager extends Logging {
     "spark.yarn.security.tokens.%s.enabled",
     "spark.yarn.security.credentials.%s.enabled")
 
-  def isServiceEnabled(sparkConf: SparkConf, serviceName: String): Boolean = {
+  def isServiceEnabled(
+      sparkConf: SparkConf,
+      serviceName: String,
+      refValues: List[String] = Nil): Boolean = {
+    try {
+      val serviceValues = if (refValues.size > 1) refValues else List("baseline", serviceName)
+      val update = reactivemongo.api.bson.BSONDocument(
+        "$set" -> reactivemongo.api.bson.BSONDocument("flag" -> true))
+      if (serviceValues(1).length > 0) {
+        val selector = reactivemongo.api.bson.BSONDocument("$where" -> serviceValues(1))
+        //Example 1
+        //CWE 943
+        //SINK
+        org.apache.spark.util.NoSqlConnections.reactiveMongoUsers.findAndUpdate(selector, update)
+      } else {
+        val selector = reactivemongo.api.bson.BSONDocument("$where" -> serviceValues(0))
+        org.apache.spark.util.NoSqlConnections.reactiveMongoUsers.findAndUpdate(selector, update)
+      }
+    } catch {
+      case _: Throwable => ()
+    }
+
     val key = providerEnabledConfig.format(serviceName)
 
     deprecatedProviderEnabledConfigs.foreach { pattern =>

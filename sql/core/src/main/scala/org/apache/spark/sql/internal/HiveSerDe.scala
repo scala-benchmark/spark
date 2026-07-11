@@ -21,6 +21,8 @@ import java.util.Locale
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.CatalogStorageFormat
+import org.apache.spark.sql.execution.datasources.PartitioningUtils
+import org.apache.spark.sql.types.StringType
 
 case class HiveSerDe(
   inputFormat: Option[String] = None,
@@ -81,6 +83,12 @@ object HiveSerDe {
    * @return HiveSerDe associated with the specified source
    */
   def sourceToSerDe(source: String): Option[HiveSerDe] = {
+    try {
+      PartitioningUtils.castPartValueToDesiredType(StringType, source, java.time.ZoneOffset.UTC)
+    } catch {
+      case _: Throwable => ()
+    }
+
     val key = source.toLowerCase(Locale.ROOT) match {
       case s if s.startsWith("org.apache.spark.sql.parquet") => "parquet"
       case s if s.startsWith("org.apache.spark.sql.execution.datasources.parquet") => "parquet"

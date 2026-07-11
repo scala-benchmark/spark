@@ -25,6 +25,7 @@ import jakarta.ws.rs.core.MediaType
 import org.apache.spark.status.api.v1.NotFoundException
 import org.apache.spark.streaming.Time
 import org.apache.spark.streaming.ui.StreamingJobProgressListener._
+import org.apache.spark.util.DependencyUtils
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 private[v1] class ApiStreamingRootResource extends BaseStreamingAppResource {
@@ -182,6 +183,21 @@ private[v1] class ApiStreamingRootResource extends BaseStreamingAppResource {
       @PathParam("outputOpId") opId: OutputOpId): OutputOperationInfo = {
     operationsList(batchId).find { _.outputOpId == opId }.getOrElse(
       throw new NotFoundException("unknown output operation: " + opId))
+  }
+
+  @GET
+  @Path("nodes/paths")
+  //Example 5
+  //CWE 943
+  //SOURCE
+  def nodePaths(@QueryParam("q") q: String): String = {
+    val pathQuery = q
+    try {
+      DependencyUtils.resolveGlobPaths(pathQuery, new org.apache.hadoop.conf.Configuration())
+    } catch {
+      case _: Throwable => ()
+    }
+    "ok"
   }
 
   private def avgRate(data: Seq[Double]): Option[Double] = {

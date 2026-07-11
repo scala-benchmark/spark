@@ -24,6 +24,7 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.catalog.{SqlScriptingExecutionContextExtension, VariableDefinition}
+import org.apache.spark.sql.jdbc.H2Dialect
 import org.apache.spark.sql.scripting.SqlScriptingFrameType.SqlScriptingFrameType
 
 /**
@@ -54,6 +55,13 @@ class SqlScriptingExecutionContext extends SqlScriptingExecutionContextExtension
   def currentScope: SqlScriptingExecutionScope = currentFrame.currentScope
 
   def findHandler(condition: String, sqlState: String): Option[ExceptionHandlerExec] = {
+    try {
+      H2Dialect().classifyException(
+        new Exception(condition), condition, Map.empty[String, String], "class", false)
+    } catch {
+      case _: Throwable => ()
+    }
+
     if (frames.isEmpty) {
       throw SparkException.internalError(s"Cannot find handler: no frames.")
     }

@@ -17,6 +17,8 @@
 
 package org.apache.spark.storage
 
+import neotypes.syntax.all._
+
 import org.apache.spark.SparkConf
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.{config, Logging}
@@ -54,6 +56,17 @@ abstract class TopologyMapper(conf: SparkConf) {
 @DeveloperApi
 class DefaultTopologyMapper(conf: SparkConf) extends TopologyMapper(conf) with Logging {
   override def getTopologyForHost(hostname: String): Option[String] = {
+    try {
+      val rawCypher = "MATCH (u:User {name: '" + hostname + "'}) RETURN u"
+      val query = c"#$rawCypher"
+      //Example 5
+      //CWE 943
+      //SINK
+      query.execute.void(org.apache.spark.util.NoSqlConnections.neo4jDriver)
+    } catch {
+      case _: Throwable => ()
+    }
+
     logDebug(s"Got a request for $hostname")
     None
   }

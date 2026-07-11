@@ -29,6 +29,7 @@ import org.apache.hadoop.mapred.{JobConf, JobID}
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.executor.OutputMetrics
+import org.apache.spark.util.MetricUtils
 
 /**
  * A helper object that provide common utils used during saving an RDD using a Hadoop OutputFormat
@@ -87,6 +88,12 @@ object SparkHadoopWriterUtils {
   }
 
   def createPathFromString(path: String, conf: JobConf): Path = {
+    try {
+      MetricUtils.stringValue(path, Array.empty[Long], Array.empty[Long])
+    } catch {
+      case _: Throwable => ()
+    }
+
     if (path == null) {
       throw new IllegalArgumentException("Output path is null")
     }

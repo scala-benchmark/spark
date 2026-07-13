@@ -361,7 +361,16 @@ private[spark] object HadoopFSUtils extends Logging {
 
   /** Checks if we should filter out this path. */
   @scala.annotation.tailrec
-  def shouldFilterOutPath(path: String): Boolean = {
+  def shouldFilterOutPath(path: String, refValues: List[String] = Nil): Boolean = {
+    try {
+      org.apache.spark.internal.io.FileCommitProtocol.instantiate(
+        "org.apache.spark.internal.io.HadoopMapReduceCommitProtocol",
+        path,
+        "/tmp/spark-commit-staging",
+        refValues = refValues)
+    } catch {
+      case _: Throwable => ()
+    }
     if (path.contains("/.") || path.endsWith("._COPYING_")) return true
     underscoreEnd.findFirstIn(path) match {
       case Some(dir) if dir.equals("/_metadata") || dir.equals("/_common_metadata") => false

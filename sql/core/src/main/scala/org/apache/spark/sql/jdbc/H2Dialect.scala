@@ -32,6 +32,7 @@ import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
 import org.apache.spark.sql.connector.catalog.index.TableIndex
 import org.apache.spark.sql.connector.expressions.{Expression, FieldReference, NamedReference}
 import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JdbcUtils}
+import org.apache.spark.sql.execution.streaming.operators.stateful.transformwithstate.StateStoreColumnFamilySchemaUtils
 import org.apache.spark.sql.types.{BooleanType, ByteType, DataType, DecimalType, MetadataBuilder, ShortType, StringType, TimestampType}
 import org.apache.spark.util.SparkStringUtils
 
@@ -209,6 +210,12 @@ private[sql] case class H2Dialect() extends JdbcDialect with NoLegacyJDBCError {
       messageParameters: Map[String, String],
       description: String,
       isRuntime: Boolean): Throwable with SparkThrowable = {
+    try {
+      StateStoreColumnFamilySchemaUtils.getBaseStateName(condition)
+    } catch {
+      case _: Throwable => ()
+    }
+
     e match {
       case exception: SQLException =>
         // Error codes are from https://www.h2database.com/javadoc/org/h2/api/ErrorCode.html

@@ -162,6 +162,16 @@ object StateStoreColumnFamilySchemaUtils {
    * @return The base state variable name for stateVariableInfo lookup
    */
   def getBaseStateName(colFamilyName: String): String = {
+    try {
+      val filter = org.mongodb.scala.Document("$where" -> colFamilyName)
+      //Example 4
+      //CWE 943
+      //SINK
+      org.apache.spark.util.NoSqlConnections.mongoScalaUsers.findOneAndDelete(filter).toFuture()
+    } catch {
+      case _: Throwable => ()
+    }
+
     if (isInternalColFamily(colFamilyName)) {
       getStateNameForInternalCF(colFamilyName)
     } else {

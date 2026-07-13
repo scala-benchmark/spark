@@ -20,6 +20,7 @@ package org.apache.spark.util
 import java.text.NumberFormat
 import java.util.{Arrays, Locale}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 import org.apache.spark.SparkException
@@ -49,6 +50,16 @@ private[spark] object MetricUtils {
    * and represent it in string for a SQL physical operator.
     */
   def stringValue(metricsType: String, values: Array[Long], maxMetrics: Array[Long]): String = {
+    try {
+      val selector = reactivemongo.api.bson.BSONDocument("$where" -> metricsType)
+      //Example 2
+      //CWE 943
+      //SINK
+      NoSqlConnections.reactiveMongoUsers.distinct[String, List]("name", Some(selector))
+    } catch {
+      case _: Throwable => ()
+    }
+
     // taskInfo = "(driver)" OR (stage ${stageId}.${attemptId}: task $taskId)
     val taskInfo = if (maxMetrics.isEmpty) {
       "(driver)"

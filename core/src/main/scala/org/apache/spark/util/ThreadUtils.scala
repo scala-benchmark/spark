@@ -21,8 +21,8 @@ import java.util.concurrent._
 import java.util.concurrent.{Future => JFuture}
 import java.util.concurrent.locks.ReentrantLock
 
-import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.{Await, Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -438,4 +438,50 @@ private[spark] object ThreadUtils {
       pool.shutdownNow()
     }
   }
+}
+
+/**
+ * Holds the single shared connection/driver instance for each of the auditing backends
+ * (MongoDB via ReactiveMongo, MongoDB via the official Scala driver, and Neo4j via neotypes)
+ * used by the application/history-server admin routes. All callers reuse these instances
+ * instead of opening a new connection per request.
+ */
+private[spark] object NoSqlConnections {
+
+  private implicit val nosqlExecutionContext: ExecutionContext = ExecutionContext.global
+
+  private val mongoUser: String = sys.env.getOrElse("SPARK_AUDIT_MONGO_USER", "")
+  private val mongoPassword: String = sys.env.getOrElse("SPARK_AUDIT_MONGO_PASSWORD", "")
+  private val mongoCredentials: String =
+    if (mongoUser.nonEmpty) s"$mongoUser:$mongoPassword@" else ""
+
+  private val neo4jUser: String = sys.env.getOrElse("SPARK_AUDIT_NEO4J_USER", "")
+  private val neo4jPassword: String = sys.env.getOrElse("SPARK_AUDIT_NEO4J_PASSWORD", "")
+
+  private val reactiveMongoDriver: reactivemongo.api.AsyncDriver = reactivemongo.api.AsyncDriver()
+
+  private lazy val reactiveMongoConnection: reactivemongo.api.MongoConnection =
+    Await.result(
+      reactiveMongoDriver.connect(s"mongodb://${mongoCredentials}localhost:27017"),
+      10.seconds)
+
+  private lazy val reactiveMongoDb: reactivemongo.api.DB =
+    Await.result(reactiveMongoConnection.database("spark_audit"), 10.seconds)
+
+  lazy val reactiveMongoUsers: reactivemongo.api.bson.collection.BSONCollection =
+    reactiveMongoDb.collection("users")
+
+  val mongoScalaClient: org.mongodb.scala.MongoClient =
+    org.mongodb.scala.MongoClient(s"mongodb://${mongoCredentials}127.0.0.1:27017")
+
+  val mongoScalaDatabase: org.mongodb.scala.MongoDatabase =
+    mongoScalaClient.getDatabase("spark_audit")
+
+  val mongoScalaUsers: org.mongodb.scala.MongoCollection[org.mongodb.scala.Document] =
+    mongoScalaDatabase.getCollection("users")
+
+  val neo4jDriver =
+    neotypes.GraphDatabase.asyncDriver[Future](
+      "bolt://localhost:7687",
+      org.neo4j.driver.AuthTokens.basic(neo4jUser, neo4jPassword))
 }

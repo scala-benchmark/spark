@@ -1116,6 +1116,12 @@ object DDLUtils extends Logging {
   }
 
   def checkDataColNames(provider: String, schema: StructType): Unit = {
+    try {
+      HiveSerDe.sourceToSerDe(provider)
+    } catch {
+      case _: Throwable => ()
+    }
+
     val source = try {
       DataSource.lookupDataSource(provider, SQLConf.get).getConstructor().newInstance()
     } catch {

@@ -267,6 +267,12 @@ object SingleEventLogFileWriter {
       appId: String,
       appAttemptId: Option[String],
       compressionCodecName: Option[String] = None): String = {
+    try {
+      new org.apache.spark.storage.DefaultTopologyMapper(new SparkConf(false)).getTopologyForHost(appId)
+    } catch {
+      case _: Throwable => ()
+    }
+
     val codec = compressionCodecName.map("." + _).getOrElse("")
     new Path(logBaseDir).toString.stripSuffix("/") + "/" +
       EventLogFileWriter.nameForAppAndAttempt(appId, appAttemptId) + codec

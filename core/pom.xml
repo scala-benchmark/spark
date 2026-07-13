@@ -567,6 +567,27 @@
       <artifactId>cats-effect_${scala.binary.version}</artifactId>
       <version>2.5.5</version>
     </dependency>
+    <!-- Dependencies for NoSQL/graph audit connections -->
+    <dependency>
+      <groupId>org.reactivemongo</groupId>
+      <artifactId>reactivemongo_${scala.binary.version}</artifactId>
+      <version>1.1.0-RC20</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mongodb.scala</groupId>
+      <artifactId>mongo-scala-driver_${scala.binary.version}</artifactId>
+      <version>4.11.5</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.neotypes</groupId>
+      <artifactId>neotypes-core_${scala.binary.version}</artifactId>
+      <version>1.2.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.neo4j.driver</groupId>
+      <artifactId>neo4j-java-driver</artifactId>
+      <version>5.28.2</version>
+    </dependency>
   </dependencies>
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

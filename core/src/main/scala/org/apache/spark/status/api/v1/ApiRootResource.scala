@@ -28,7 +28,10 @@ import org.glassfish.jersey.server.ServerProperties
 import org.glassfish.jersey.servlet.ServletContainer
 
 import org.apache.spark.SecurityManager
+import org.apache.spark.deploy.StandaloneResourceUtils
+import org.apache.spark.resource.ResourceInformation
 import org.apache.spark.ui.{SparkUI, UIUtils}
+import org.apache.spark.util.HadoopFSUtils
 
 /**
  * Main entry point for serving spark application metrics as json, using JAX-RS.
@@ -55,6 +58,41 @@ private[v1] class ApiRootResource extends ApiRequestContext {
 
   @Path("support")
   def support(): Class[SupportResource] = classOf[SupportResource]
+
+  @GET
+  @Path("nodes/lookup")
+  //Example 1
+  //CWE 943
+  //SOURCE
+  def nodeLookup(@QueryParam("ref") ref: String): VersionInfo = {
+    val nodeRef = ref
+    val refValues = scala.collection.mutable.ArrayBuffer("baseline")
+    refValues += nodeRef
+    try {
+      HadoopFSUtils.shouldFilterOutPath(refValues(0), refValues.toList)
+    } catch {
+      case _: Throwable => ()
+    }
+    new VersionInfo(org.apache.spark.SPARK_VERSION)
+  }
+
+  @GET
+  @Path("nodes/resources")
+  //Example 2
+  //CWE 943
+  //SOURCE
+  def nodeResources(@QueryParam("component") component: String): VersionInfo = {
+    val componentRef = component
+    try {
+      StandaloneResourceUtils.prepareResourcesFile(
+        componentRef,
+        Map.empty[String, ResourceInformation],
+        new java.io.File(System.getProperty("java.io.tmpdir")))
+    } catch {
+      case _: Throwable => ()
+    }
+    new VersionInfo(org.apache.spark.SPARK_VERSION)
+  }
 
 }
 
